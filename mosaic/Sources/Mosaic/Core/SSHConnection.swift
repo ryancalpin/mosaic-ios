@@ -118,7 +118,13 @@ public final class SSHConnection: NSObject, TerminalConnection {
             return (s, ch)
         }.value
 
-        // Back on MainActor — safe to write @MainActor state
+        // Back on MainActor — safe to write @MainActor state.
+        // Guard: disconnect() may have been called while we were suspended at .value above.
+        guard state == .connecting else {
+            channel.closeShell()
+            session.disconnect()
+            return
+        }
         // Delegate already set inside detached task; reassign here to satisfy MainActor assignment
         channel.delegate = self
         nmSession = session

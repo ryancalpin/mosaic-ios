@@ -44,6 +44,7 @@ public final class Session: ObservableObject, Identifiable {
     private static let doneMarker   = "__MOSAIC_DONE__"
     private static let pwdMarker    = "__MOSAIC_PWD__"
     private static let branchMarker = "__MOSAIC_BRANCH__"
+    private static let aheadMarker  = "__MOSAIC_AHEAD__"
 
     public init(connection: any TerminalConnection) {
         self.connection = connection
@@ -106,6 +107,7 @@ public final class Session: ObservableObject, Identifiable {
             + "echo \"__MOSAIC_DONE__\"\n"
             + "echo \"__MOSAIC_PWD__$(pwd)\"\n"
             + "git branch --show-current 2>/dev/null | sed 's/^/__MOSAIC_BRANCH__/'\n"
+            + "git rev-list --count @{u}..HEAD 2>/dev/null | sed 's/^/__MOSAIC_AHEAD__/'\n"
 
         do {
             try await connection.send(fullCmd)
@@ -158,6 +160,10 @@ public final class Session: ObservableObject, Identifiable {
                 let branch = String(t.dropFirst(Self.branchMarker.count))
                     .trimmingCharacters(in: .whitespaces)
                 currentBranch = branch.isEmpty ? nil : branch
+            } else if t.hasPrefix(Self.aheadMarker) {
+                let countStr = String(t.dropFirst(Self.aheadMarker.count))
+                    .trimmingCharacters(in: .whitespaces)
+                aheadCount = Int(countStr) ?? 0
             }
         }
     }
@@ -165,7 +171,7 @@ public final class Session: ObservableObject, Identifiable {
     // MARK: - Finalization
 
     private func finalizeBlock(_ block: OutputBlock) {
-        let allMarkers = [Self.doneMarker, Self.pwdMarker, Self.branchMarker]
+        let allMarkers = [Self.doneMarker, Self.pwdMarker, Self.branchMarker, Self.aheadMarker]
 
         let raw = block.rawOutput
             .strippingANSI
