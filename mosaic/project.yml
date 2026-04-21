@@ -1,0 +1,60 @@
+name: Mosaic
+options:
+  bundleIdPrefix: com.ryncalpin
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "15.2"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+packages:
+  NMSSH:
+    url: https://github.com/NMSSH/NMSSH
+    from: "2.3.2"
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    from: "1.2.0"
+
+targets:
+  Mosaic:
+    type: application
+    platform: iOS
+    sources:
+      - Sources/Mosaic
+    resources:
+      - path: Resources
+        optional: true
+    info:
+      path: Sources/Mosaic/App/Info.plist
+      properties:
+        CFBundleDisplayName: Mosaic
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        UILaunchStoryboardName: LaunchScreen
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSFaceIDUsageDescription: Used to protect saved server credentials
+    entitlements:
+      path: Sources/Mosaic/App/Mosaic.entitlements
+      properties:
+        com.apple.security.network.client: true
+        com.apple.developer.icloud-services:
+          - CloudKit
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.ryncalpin.mosaic
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ryncalpin.mosaic
+        DEVELOPMENT_TEAM: ""
+        SWIFT_VERSION: "5.9"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+    dependencies:
+      - package: NMSSH
+      - package: SwiftTerm
