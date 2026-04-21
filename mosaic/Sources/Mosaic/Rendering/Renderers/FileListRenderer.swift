@@ -31,12 +31,21 @@ public final class FileListRenderer: OutputRenderer {
 
         var entries: [FileEntry] = []
 
+        let permChars = CharacterSet(charactersIn: "-dlbcps")
+
         for line in lines {
             let parts = line.split(separator: " ", maxSplits: 8, omittingEmptySubsequences: true)
-            guard parts.count >= 9 else {
-                // Short format (ls without -la) — just names
-                let name = line.trimmingCharacters(in: .whitespaces)
-                if !name.isEmpty {
+            // Long format requires 9+ fields AND a valid permissions prefix character.
+            // Without the second check, space-separated short-format lines with 9+ tokens
+            // (e.g. "a b c d e f g h i") fall into the long path and misparse fields.
+            let looksLikeLongFormat = parts.count >= 9
+                && String(parts[0]).unicodeScalars.first.map { permChars.contains($0) } ?? false
+
+            guard looksLikeLongFormat else {
+                // Short format (ls without -la) — one or more filenames per line
+                for token in line.split(separator: " ", omittingEmptySubsequences: true) {
+                    let name = String(token)
+                    guard !name.isEmpty else { continue }
                     let isDir  = name.hasSuffix("/")
                     let isLink = name.hasSuffix("@")
                     entries.append(FileEntry(

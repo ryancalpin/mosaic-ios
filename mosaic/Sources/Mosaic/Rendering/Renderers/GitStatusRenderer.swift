@@ -27,7 +27,8 @@ public final class GitStatusRenderer: OutputRenderer {
         var deleted:   [String] = []
         var staged:    [String] = []
 
-        var inStagedSection = false
+        var inStagedSection   = false
+        var inUntrackedSection = false
 
         for line in output.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -37,9 +38,14 @@ public final class GitStatusRenderer: OutputRenderer {
             } else if trimmed.hasPrefix("HEAD detached at ") {
                 branch = String(trimmed.dropFirst("HEAD detached at ".count))
             } else if trimmed.contains("Changes to be committed") {
-                inStagedSection = true
-            } else if trimmed.contains("Changes not staged") || trimmed.contains("Untracked files") {
-                inStagedSection = false
+                inStagedSection   = true
+                inUntrackedSection = false
+            } else if trimmed.contains("Changes not staged") {
+                inStagedSection   = false
+                inUntrackedSection = false
+            } else if trimmed.contains("Untracked files") {
+                inStagedSection   = false
+                inUntrackedSection = true
             } else if trimmed.contains("ahead") {
                 // "Your branch is ahead of 'origin/main' by 2 commits."
                 let parts = trimmed.components(separatedBy: " ")
@@ -60,22 +66,15 @@ public final class GitStatusRenderer: OutputRenderer {
             } else if trimmed.hasPrefix("new file:") {
                 let file = trimmed.replacingOccurrences(of: "new file:", with: "").trimmingCharacters(in: .whitespaces)
                 staged.append(file)
-            } else if !trimmed.isEmpty &&
+            } else if inUntrackedSection &&
+                      !trimmed.isEmpty &&
                       !trimmed.hasPrefix("#") &&
                       !trimmed.hasPrefix("(") &&
-                      !trimmed.hasPrefix("Your branch") &&
-                      !trimmed.hasPrefix("On ") &&
-                      !trimmed.hasPrefix("HEAD") &&
-                      !trimmed.hasPrefix("Changes") &&
-                      !trimmed.hasPrefix("Untracked") &&
-                      !trimmed.hasPrefix("no changes") &&
-                      trimmed.count > 2 &&
-                      !trimmed.hasPrefix("nothing") {
-                // Untracked file heuristic (indented with no prefix keyword)
+                      trimmed.count > 2 {
+                // Untracked file heuristic — only active inside the "Untracked files" section
+                // so git advisory lines (e.g. `use "git restore"…`) outside that section are ignored.
                 if line.hasPrefix("\t") || (line.hasPrefix("  ") && !trimmed.hasPrefix("-")) {
-                    if !modified.contains(trimmed) && !deleted.contains(trimmed) {
-                        untracked.append(trimmed)
-                    }
+                    untracked.append(trimmed)
                 }
             }
         }
