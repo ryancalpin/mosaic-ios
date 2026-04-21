@@ -2,15 +2,15 @@ name: Mosaic
 options:
   bundleIdPrefix: com.ryncalpin
   deploymentTarget:
-    iOS: "17.0"
-  xcodeVersion: "15.2"
+    iOS: "26.0"
+  xcodeVersion: "26.4"
   createIntermediateGroups: true
   groupSortPosition: top
 
 packages:
-  NMSSH:
-    url: https://github.com/NMSSH/NMSSH
-    from: "2.3.2"
+  Citadel:
+    url: https://github.com/orlandos-nl/Citadel
+    from: "0.12.1"
   SwiftTerm:
     url: https://github.com/migueldeicaza/SwiftTerm
     from: "1.2.0"
@@ -44,6 +44,26 @@ targets:
           - JetBrainsMono-Regular.ttf
           - JetBrainsMono-Bold.ttf
           - JetBrainsMono-SemiBold.ttf
+        NSUserActivityTypes:
+          - com.mosaic.session
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.mosaic.renderer
+            UTTypeDescription: Mosaic Renderer Definition
+            UTTypeConformsTo:
+              - public.data
+              - public.json
+            UTTypeTagSpecification:
+              "public.filename-extension":
+                - mosaic-renderer
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: com.mosaic.renderer
+            UTTypeDescription: Mosaic Renderer Definition
+            UTTypeConformsTo:
+              - public.data
+              - public.json
+            UTTypeTagSpecification:
+              "public.filename-extension":
+                - mosaic-renderer
     entitlements:
       path: Sources/Mosaic/App/Mosaic.entitlements
       properties:
@@ -57,8 +77,13 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.ryncalpin.mosaic
         DEVELOPMENT_TEAM: ""
         SWIFT_VERSION: "5.9"
-        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        IPHONEOS_DEPLOYMENT_TARGET: "26.0"
         TARGETED_DEVICE_FAMILY: "1,2"
+        OTHER_LDFLAGS: "-lz"
     dependencies:
-      - package: NMSSH
+      - package: Citadel
       - package: SwiftTerm
+      - framework: Frameworks/mosh.xcframework
+        embed: true
+      - framework: Frameworks/Protobuf_C_.xcframework
+        embed: true

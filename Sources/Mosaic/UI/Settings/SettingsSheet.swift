@@ -60,6 +60,14 @@ struct SettingsSheet: View {
                     Toggle("Show Timestamps", isOn: $s.showTimestamps)
                 }
 
+                // MARK: Custom Renderers
+                Section("Custom Renderers") {
+                    NavigationLink("Manage Renderers") {
+                        CustomRendererListView()
+                    }
+                    .foregroundStyle(Color.mosaicAccent)
+                }
+
                 // MARK: AI
                 Section("AI") {
                     HStack {

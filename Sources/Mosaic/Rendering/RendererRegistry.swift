@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 // MARK: - RendererRegistry
 //
@@ -13,7 +14,7 @@ import Foundation
 public final class RendererRegistry: ObservableObject {
     public static let shared = RendererRegistry()
 
-    private var renderers: [any OutputRenderer] = []
+    var renderers: [any OutputRenderer] = []
     private var aliasMap: [String: String] = [:]  // e.g. ["dps": "docker ps"]
 
     private init() {
@@ -25,6 +26,15 @@ public final class RendererRegistry: ObservableObject {
     public func register(_ renderer: any OutputRenderer) {
         renderers.append(renderer)
         renderers.sort { $0.priority > $1.priority }
+    }
+
+    public func registerCustomRenderers(from context: ModelContext) {
+        renderers.removeAll { $0.id.hasPrefix("custom.") }
+        let all = (try? context.fetch(FetchDescriptor<CustomRenderer>())) ?? []
+        for model in all {
+            let adapter = CustomRendererAdapter(model: model)
+            register(adapter)
+        }
     }
 
     public func unregister(id: String) {

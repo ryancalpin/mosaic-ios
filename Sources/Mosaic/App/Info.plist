@@ -22,6 +22,10 @@
 	<string>1</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Used to protect saved server credentials</string>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>com.mosaic.session</string>
+	</array>
 	<key>UIAppFonts</key>
 	<array>
 		<string>JetBrainsMono-Regular.ttf</string>
@@ -42,9 +46,47 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSUserActivityTypes</key>
+	<key>UTExportedTypeDeclarations</key>
 	<array>
-		<string>com.mosaic.session</string>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Mosaic Renderer Definition</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.mosaic.renderer</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>mosaic-renderer</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Mosaic Renderer Definition</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.mosaic.renderer</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>mosaic-renderer</string>
+				</array>
+			</dict>
+		</dict>
 	</array>
 </dict>
 </plist>
