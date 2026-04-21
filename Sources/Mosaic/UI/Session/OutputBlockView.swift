@@ -1,3 +1,4 @@
+// Sources/Mosaic/UI/Session/OutputBlockView.swift
 import SwiftUI
 
 // MARK: - OutputBlockView
@@ -6,17 +7,27 @@ import SwiftUI
 struct OutputBlockView: View {
     @ObservedObject var block: OutputBlock
 
+    @Environment(\.terminalFontSize)    private var fontSize
+    @Environment(\.outputDensity)       private var density
+    @Environment(\.showNativeRenderers) private var showNativeRenderers
+    @Environment(\.showTimestamps)      private var showTimestamps
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // Command line
             HStack(spacing: 6) {
                 Text("›")
-                    .font(.custom("JetBrains Mono", size: 12).weight(.bold))
+                    .font(.custom("JetBrains Mono", size: fontSize - 1).weight(.bold))
                     .foregroundColor(.mosaicAccent)
                 Text(block.displayCommand)
-                    .font(.custom("JetBrains Mono", size: 12))
+                    .font(.custom("JetBrains Mono", size: fontSize - 1))
                     .foregroundColor(.mosaicTextPri)
                 Spacer()
+                if showTimestamps && !block.isStreaming {
+                    Text(block.timestamp, style: .time)
+                        .font(.custom("JetBrains Mono", size: 9))
+                        .foregroundColor(.mosaicTextSec)
+                }
                 if block.isStreaming {
                     ProgressView()
                         .scaleEffect(0.6)
@@ -27,21 +38,22 @@ struct OutputBlockView: View {
             // Output
             if block.isStreaming && block.rawOutput.isEmpty {
                 EmptyView()
-            } else if block.isNativelyRendered,
+            } else if showNativeRenderers,
+                      block.isNativelyRendered,
                       let label = block.rendererBadgeLabel,
                       let result = block.cachedRendererResult {
-                NativeOutputView(label: label, result: result, rawOutput: block.rawOutput)
+                NativeOutputView(label: label, result: result, rawOutput: block.rawOutput, fontSize: fontSize)
             } else {
                 rawText(block.rawOutput)
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.vertical, density.verticalPadding)
     }
 
     private func rawText(_ output: String) -> some View {
         Text(output)
-            .font(.custom("JetBrains Mono", size: 11))
+            .font(.custom("JetBrains Mono", size: fontSize))
             .foregroundColor(.mosaicTextPri)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -55,6 +67,7 @@ private struct NativeOutputView: View {
     let label: String
     let result: RendererResult
     let rawOutput: String
+    let fontSize: Double
 
     @State private var showingRaw = false
 
@@ -73,7 +86,7 @@ private struct NativeOutputView: View {
 
     private var rawView: some View {
         Text(rawOutput)
-            .font(.custom("JetBrains Mono", size: 11))
+            .font(.custom("JetBrains Mono", size: fontSize))
             .foregroundColor(.mosaicTextPri)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -81,7 +94,6 @@ private struct NativeOutputView: View {
 
     @ViewBuilder
     private var nativeView: some View {
-        // Use the pre-computed result — no re-parsing on render
         if case .native(let renderer, let data, _) = result {
             renderer.view(for: data)
         } else {
