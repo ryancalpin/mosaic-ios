@@ -207,3 +207,6 @@ extension SSHConnection: NMSSHChannelDelegate {
         }
     }
 }
+
+// continuationLock protects all shared mutable state; @MainActor guards nmSession/nmChannel
+extension SSHConnection: @unchecked Sendable {}
