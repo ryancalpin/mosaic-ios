@@ -59,6 +59,22 @@ struct SettingsSheet: View {
                     Toggle("Native Renderers", isOn: $s.showNativeRenderers)
                     Toggle("Show Timestamps", isOn: $s.showTimestamps)
                 }
+
+                // MARK: AI
+                Section("AI") {
+                    HStack {
+                        Text("Claude API Key")
+                            .font(.custom("JetBrains Mono", size: 11))
+                            .foregroundStyle(Color.mosaicTextSec)
+                        Spacer()
+                        SecureField("sk-ant-...", text: $s.claudeApiKey)
+                            .font(.custom("JetBrains Mono", size: 11))
+                            .foregroundStyle(Color.mosaicTextPri)
+                            .multilineTextAlignment(.trailing)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                    }
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

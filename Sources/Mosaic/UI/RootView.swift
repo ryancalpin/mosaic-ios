@@ -10,6 +10,8 @@ struct RootView: View {
     @State private var showSettingsSheet = false
     @State private var connectionError: String? = nil
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var showAITab  = false
+    @State private var aiSession: AISession? = nil
 
     var body: some View {
         Group {
@@ -47,6 +49,13 @@ struct RootView: View {
         }
     }
 
+    private func getOrCreateAISession(for session: Session) -> AISession {
+        if let existing = aiSession { return existing }
+        let ai = AISession(mirroring: session, apiKey: settings.claudeApiKey)
+        aiSession = ai
+        return ai
+    }
+
     private var iPadLayout: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(
@@ -72,12 +81,24 @@ struct RootView: View {
             VStack(spacing: 0) {
                 if !manager.sessions.isEmpty {
                     TabBarView(
-                        manager:    manager,
-                        onAddTab:   { showConnectionSheet = true },
-                        onSettings: { showSettingsSheet = true }
+                        manager:      manager,
+                        onAddTab:     { showConnectionSheet = true },
+                        onSettings:   { showSettingsSheet = true },
+                        onToggleAI:   {
+                            showAITab.toggle()
+                            if !showAITab {
+                                let s = aiSession
+                                aiSession = nil
+                                Task { await s?.disconnect() }
+                            }
+                        },
+                        isAITabActive: showAITab
                     )
                 }
-                if let session = manager.activeSession {
+                if showAITab, let session = manager.activeSession {
+                    AITabView(aiSession: getOrCreateAISession(for: session), manualSession: session)
+                        .id(session.id)
+                } else if let session = manager.activeSession {
                     SessionView(session: session)
                         .id(session.id)
                 } else {

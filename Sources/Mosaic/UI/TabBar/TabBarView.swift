@@ -11,6 +11,8 @@ struct TabBarView: View {
     @ObservedObject var manager: SessionManager
     let onAddTab: () -> Void
     let onSettings: () -> Void
+    let onToggleAI:    () -> Void
+    let isAITabActive: Bool
 
     var body: some View {
         HStack(spacing: 0) {
@@ -41,6 +43,29 @@ struct TabBarView: View {
                 }
                 .padding(.horizontal, 8)
             }
+
+            // AI button — pinned between scroll area and separator
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                onToggleAI()
+            } label: {
+                HStack(spacing: 3) {
+                    Text("✦")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("AI")
+                        .font(.custom("JetBrains Mono", size: 9).weight(.bold))
+                }
+                .foregroundColor(isAITabActive ? .mosaicAccent : .mosaicTextSec)
+                .frame(width: 48, height: tabBarHeight)
+                .contentShape(Rectangle())
+                .overlay(
+                    Rectangle()
+                        .fill(isAITabActive ? Color.mosaicAccent : .clear)
+                        .frame(height: 2),
+                    alignment: .bottom
+                )
+            }
+            .buttonStyle(.plain)
 
             // Gear — pinned at trailing edge, outside the scroll view
             Rectangle()

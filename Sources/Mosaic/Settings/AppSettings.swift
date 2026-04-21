@@ -53,6 +53,9 @@ final class AppSettings {
     var showTimestamps: Bool {
         didSet { UserDefaults.standard.set(showTimestamps, forKey: "mosaic.timestamps") }
     }
+    var claudeApiKey: String {
+        didSet { UserDefaults.standard.set(claudeApiKey, forKey: "mosaic.claudeApiKey") }
+    }
 
     private init() {
         let ud = UserDefaults.standard
@@ -62,5 +65,6 @@ final class AppSettings {
         outputDensity    = OutputDensity(rawValue: ud.string(forKey: "mosaic.density") ?? "") ?? .standard
         showNativeRenderers = ud.object(forKey: "mosaic.nativeRenderers") as? Bool ?? true
         showTimestamps   = ud.object(forKey: "mosaic.timestamps") as? Bool ?? false
+        claudeApiKey     = ud.string(forKey: "mosaic.claudeApiKey") ?? ""
     }
 }
