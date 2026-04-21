@@ -9,6 +9,7 @@ import SwiftUI
 struct RootView: View {
     @ObservedObject private var manager = SessionManager.shared
     @State private var showConnectionSheet = false
+    @State private var showSettingsSheet = false
     @State private var connectionError: String? = nil
 
     var body: some View {
@@ -20,6 +21,8 @@ struct RootView: View {
                 if !manager.sessions.isEmpty {
                     TabBarView(manager: manager, onAddTab: {
                         showConnectionSheet = true
+                    }, onSettings: {
+                        showSettingsSheet = true
                     })
                 }
 
@@ -35,6 +38,10 @@ struct RootView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showSettingsSheet) {
+            SettingsSheet()
+                .environment(AppSettings.shared)
+        }
         .sheet(isPresented: $showConnectionSheet) {
             ConnectionSheet { connection in
                 Task {
