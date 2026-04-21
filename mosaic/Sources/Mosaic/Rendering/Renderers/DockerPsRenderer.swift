@@ -61,12 +61,16 @@ public final class DockerPsRenderer: OutputRenderer {
 
         var containers: [ContainerRow] = []
 
-        for line in lines[(headerIndex + 1)...] where line.count >= namesOffset {
+        for line in lines[(headerIndex + 1)...] where line.utf8.count >= namesOffset {
             func col(from start: Int, to end: Int) -> String {
-                guard start < line.count else { return "" }
-                let s = line.index(line.startIndex, offsetBy: start, limitedBy: line.endIndex) ?? line.endIndex
-                let e = line.index(line.startIndex, offsetBy: end,   limitedBy: line.endIndex) ?? line.endIndex
-                guard s <= e else { return "" }
+                let u = line.utf8
+                guard start < u.count else { return "" }
+                let si = u.index(u.startIndex, offsetBy: start, limitedBy: u.endIndex) ?? u.endIndex
+                let ei = u.index(u.startIndex, offsetBy: end, limitedBy: u.endIndex) ?? u.endIndex
+                guard si <= ei else { return "" }
+                // Column boundaries always land on ASCII spaces so samePosition is always valid
+                let s = si.samePosition(in: line) ?? line.startIndex
+                let e = ei.samePosition(in: line) ?? line.endIndex
                 return String(line[s..<e]).trimmingCharacters(in: .whitespaces)
             }
 

@@ -119,6 +119,10 @@ public final class SSHConnection: NSObject, TerminalConnection {
         }.value
 
         // Back on MainActor — safe to write @MainActor state.
+        // Set nmSession/nmChannel before the guard so channelShellDidClose's queued Task sees
+        // them as non-nil and doesn't treat the close as a no-op during the race window.
+        nmSession = session
+        nmChannel = channel
         // Guard: disconnect() may have been called while we were suspended at .value above.
         guard state == .connecting else {
             channel.closeShell()
@@ -127,8 +131,6 @@ public final class SSHConnection: NSObject, TerminalConnection {
         }
         // Delegate already set inside detached task; reassign here to satisfy MainActor assignment
         channel.delegate = self
-        nmSession = session
-        nmChannel = channel
         state = .connected
     }
 
@@ -202,7 +204,7 @@ extension SSHConnection: NMSSHChannelDelegate {
         // Update state first so didSet's yieldState fires while the continuation is still live,
         // then clear and finish the continuations.
         Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self, self.nmChannel != nil else { return }
             self.state = .disconnected   // didSet → yieldState → yields to live continuation
 
             self.continuationLock.lock()

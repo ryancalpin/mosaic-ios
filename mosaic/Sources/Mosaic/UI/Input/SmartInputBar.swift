@@ -94,7 +94,8 @@ struct SmartInputBar: View {
             text = ""
             onNeedsApproval(cmd, tier)
         case .tier1, .tier2:
-            text = ""
+            // Don't clear text — if the user cancels the approval card the command stays in the
+            // input field so they can edit or retry without retyping. The caller clears it on confirm.
             onNeedsApproval(cmd, tier)
         }
         isFocused = true

@@ -49,6 +49,7 @@ struct SessionView: View {
                                         onConfirm: {
                                             showApproval = false
                                             approvalCommand = nil
+                                            session.pendingCommand = ""
                                             Task { await session.send(cmd) }
                                         },
                                         onCancel: {

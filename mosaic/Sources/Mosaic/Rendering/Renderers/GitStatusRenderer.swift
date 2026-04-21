@@ -27,6 +27,8 @@ public final class GitStatusRenderer: OutputRenderer {
         var deleted:   [String] = []
         var staged:    [String] = []
 
+        var inStagedSection = false
+
         for line in output.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
@@ -34,6 +36,10 @@ public final class GitStatusRenderer: OutputRenderer {
                 branch = String(trimmed.dropFirst("On branch ".count))
             } else if trimmed.hasPrefix("HEAD detached at ") {
                 branch = String(trimmed.dropFirst("HEAD detached at ".count))
+            } else if trimmed.contains("Changes to be committed") {
+                inStagedSection = true
+            } else if trimmed.contains("Changes not staged") || trimmed.contains("Untracked files") {
+                inStagedSection = false
             } else if trimmed.contains("ahead") {
                 // "Your branch is ahead of 'origin/main' by 2 commits."
                 let parts = trimmed.components(separatedBy: " ")
@@ -47,7 +53,7 @@ public final class GitStatusRenderer: OutputRenderer {
                 }
             } else if trimmed.hasPrefix("modified:") {
                 let file = trimmed.replacingOccurrences(of: "modified:", with: "").trimmingCharacters(in: .whitespaces)
-                modified.append(file)
+                if inStagedSection { staged.append(file) } else { modified.append(file) }
             } else if trimmed.hasPrefix("deleted:") {
                 let file = trimmed.replacingOccurrences(of: "deleted:", with: "").trimmingCharacters(in: .whitespaces)
                 deleted.append(file)
