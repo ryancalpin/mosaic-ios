@@ -1,52 +1,22 @@
+// Sources/Mosaic/UI/RootView.swift
 import SwiftUI
-
-// MARK: - RootView
-//
-// Top-level layout: tab bar → breadcrumb → session content.
-// Manages the connection sheet and session switching.
 
 @MainActor
 struct RootView: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @ObservedObject private var manager = SessionManager.shared
     @State private var showConnectionSheet = false
     @State private var showSettingsSheet = false
     @State private var connectionError: String? = nil
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        ZStack {
-            Color.mosaicBg.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // Tab bar (always visible)
-                if !manager.sessions.isEmpty {
-                    TabBarView(manager: manager, onAddTab: {
-                        showConnectionSheet = true
-                    }, onSettings: {
-                        showSettingsSheet = true
-                    })
-                }
-
-                // Content
-                if let session = manager.activeSession {
-                    SessionView(session: session)
-                        .id(session.id)
-                } else {
-                    EmptyStateView(onConnect: {
-                        showConnectionSheet = true
-                    })
-                    .overlay(alignment: .topTrailing) {
-                        Button { showSettingsSheet = true } label: {
-                            Image(systemName: "gearshape")
-                                .font(.system(size: 15))
-                                .foregroundColor(.mosaicTextSec)
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .padding(8)
-                    }
-                }
+        Group {
+            if sizeClass == .regular {
+                iPadLayout
+            } else {
+                iPhoneLayout
             }
         }
         .preferredColorScheme(settings.theme.colorScheme)
@@ -74,6 +44,57 @@ struct RootView: View {
             Button("OK") { connectionError = nil }
         } message: {
             Text(connectionError ?? "")
+        }
+    }
+
+    private var iPadLayout: some View {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            SidebarView(
+                manager: manager,
+                onAddTab:   { showConnectionSheet = true },
+                onSettings: { showSettingsSheet = true }
+            )
+            .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
+        } detail: {
+            if let session = manager.activeSession {
+                SessionView(session: session)
+                    .id(session.id)
+            } else {
+                EmptyStateView(onConnect: { showConnectionSheet = true })
+            }
+        }
+        .navigationSplitViewStyle(.balanced)
+    }
+
+    private var iPhoneLayout: some View {
+        ZStack {
+            Color.mosaicBg.ignoresSafeArea()
+            VStack(spacing: 0) {
+                if !manager.sessions.isEmpty {
+                    TabBarView(
+                        manager:    manager,
+                        onAddTab:   { showConnectionSheet = true },
+                        onSettings: { showSettingsSheet = true }
+                    )
+                }
+                if let session = manager.activeSession {
+                    SessionView(session: session)
+                        .id(session.id)
+                } else {
+                    EmptyStateView(onConnect: { showConnectionSheet = true })
+                        .overlay(alignment: .topTrailing) {
+                            Button { showSettingsSheet = true } label: {
+                                Image(systemName: "gearshape")
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(Color.mosaicTextSec)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .padding(8)
+                        }
+                }
+            }
         }
     }
 }
