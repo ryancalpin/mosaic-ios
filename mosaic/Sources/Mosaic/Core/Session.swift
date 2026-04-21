@@ -105,9 +105,10 @@ public final class Session: ObservableObject, Identifiable {
         // which would strip leading whitespace from the user's command and could
         // cause here-documents in the command to consume the sentinel lines.
         let fullCmd = command + "\n"
+            + "true\n"
             + "echo \"__MOSAIC_DONE__\"\n"
             + "echo \"__MOSAIC_PWD__$(pwd)\"\n"
-            + "git branch --show-current 2>/dev/null | sed 's/^/__MOSAIC_BRANCH__/'\n"
+            + "git branch --show-current 2>/dev/null | sed 's/^/__MOSAIC_BRANCH__/' || true\n"
             + "echo \"__MOSAIC_AHEAD__$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)\"\n"
 
         do {
