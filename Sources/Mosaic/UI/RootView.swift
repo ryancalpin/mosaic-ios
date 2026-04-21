@@ -47,6 +47,14 @@ struct RootView: View {
         } message: {
             Text(connectionError ?? "")
         }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: NSNotification.Name.NSPersistentStoreRemoteChange
+            )
+        ) { _ in
+            // @Query views update automatically when CloudKit pushes arrive.
+            // This is the hook point for any imperative state refresh in the future.
+        }
     }
 
     private func getOrCreateAISession(for session: Session) -> AISession {
