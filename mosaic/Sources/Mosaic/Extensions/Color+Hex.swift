@@ -7,7 +7,10 @@ extension Color {
 
         let scanner = Scanner(string: hex)
         var rgb: UInt64 = 0
-        scanner.scanHexInt64(&rgb)
+        guard scanner.scanHexInt64(&rgb) else {
+            self.init(red: 0.5, green: 0.5, blue: 0.5)  // fallback gray for invalid hex
+            return
+        }
 
         let r = Double((rgb >> 16) & 0xFF) / 255.0
         let g = Double((rgb >>  8) & 0xFF) / 255.0

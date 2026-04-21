@@ -107,6 +107,7 @@ struct ApprovalCardView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(isTier1 ? Color.mosaicRed.opacity(0.3) : Color.mosaicWarn.opacity(0.3), lineWidth: 1)
         )
+        .onDisappear { cancelHolding() }  // prevent timer leak if view is dismissed mid-hold
     }
 
     // MARK: - Hold Timer
@@ -115,7 +116,7 @@ struct ApprovalCardView: View {
         guard holdTimer == nil else { return }
         isHolding = true
         let start = Date()
-        holdTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+        let t = Timer(timeInterval: 0.05, repeats: true) { _ in
             let elapsed = Date().timeIntervalSince(start)
             holdProgress = min(CGFloat(elapsed / 2.0), 1.0)
             if holdProgress >= 1.0 {
@@ -123,6 +124,9 @@ struct ApprovalCardView: View {
                 onConfirm()
             }
         }
+        // Schedule on .common so it fires even when keyboard scroll tracking is active
+        RunLoop.main.add(t, forMode: .common)
+        holdTimer = t
     }
 
     private func cancelHolding() {

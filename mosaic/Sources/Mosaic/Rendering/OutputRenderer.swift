@@ -10,6 +10,8 @@ import SwiftUI
 // RULE: parse() must NEVER partially succeed. If the output doesn't
 // match the expected format exactly, return nil immediately.
 
+// Renderers are always created and used on @MainActor (RendererRegistry is @MainActor).
+@MainActor
 public protocol OutputRenderer: AnyObject {
     /// Unique identifier e.g. "docker.ps", "git.status"
     var id: String { get }

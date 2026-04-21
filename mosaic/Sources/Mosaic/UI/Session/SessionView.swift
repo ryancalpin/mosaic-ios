@@ -1,12 +1,6 @@
 import SwiftUI
 
 // MARK: - SessionView
-//
-// Layout: BreadcrumbBar → [ScrollView of OutputBlocks | TerminalView] → SmartInputBar
-//
-// TerminalViewBridge is always present in the hierarchy (zero-size overlay).
-// It processes all SSH bytes through SwiftTerm's VT100 engine regardless
-// of whether we're showing native or raw output — per spec "Never bypass SwiftTerm."
 
 struct SessionView: View {
     @ObservedObject var session: Session
@@ -18,7 +12,6 @@ struct SessionView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Breadcrumb
             BreadcrumbBar(
                 username:  connInfo.username,
                 hostname:  connInfo.hostname,
@@ -27,59 +20,65 @@ struct SessionView: View {
                 ahead:     session.aheadCount
             )
 
-            // Main content area
-            ZStack(alignment: .topLeading) {
-                // SwiftTerm — always processing, zero-size when not shown directly.
-                // In Phase 1 it runs as the VT100 back-end.
-                // Phase 2+: show it full-screen when no renderer matches.
-                TerminalViewBridge(session: session)
-                    .frame(width: 0, height: 0)
-                    .opacity(0)
+            // GeometryReader gives TerminalViewBridge real dimensions so
+            // the SSH server receives correct cols/rows for vim, htop, etc.
+            GeometryReader { geo in
+                ZStack(alignment: .topLeading) {
+                    // SwiftTerm — hidden via opacity, but full-sized so it reports
+                    // correct terminal dimensions. allowsHitTesting(false) keeps it
+                    // from intercepting touches meant for the scroll view.
+                    TerminalViewBridge(session: session, size: geo.size)
+                        .opacity(0)
+                        .allowsHitTesting(false)
 
-                // Output blocks scroll
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(session.blocks) { block in
-                                OutputBlockView(block: block)
-                                    .id(block.id)
-                                Divider()
-                                    .background(Color.mosaicBorder.opacity(0.4))
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 0) {
+                                ForEach(session.blocks) { block in
+                                    OutputBlockView(block: block)
+                                        .id(block.id)
+                                    Divider()
+                                        .background(Color.mosaicBorder.opacity(0.4))
+                                }
+
+                                if showApproval, let cmd = approvalCommand {
+                                    ApprovalCardView(
+                                        command: cmd,
+                                        tier: approvalTier,
+                                        onConfirm: {
+                                            showApproval = false
+                                            Task { await session.send(cmd) }
+                                        },
+                                        onCancel: {
+                                            showApproval = false
+                                            approvalCommand = nil
+                                        }
+                                    )
+                                    .padding(14)
+                                    .id("approval")
+                                }
+
+                                Color.clear.frame(height: 8).id("bottom")
                             }
-
-                            if showApproval, let cmd = approvalCommand {
-                                ApprovalCardView(
-                                    command: cmd,
-                                    tier: approvalTier,
-                                    onConfirm: {
-                                        showApproval = false
-                                        Task { await session.send(cmd) }
-                                    },
-                                    onCancel: {
-                                        showApproval = false
-                                        approvalCommand = nil
-                                    }
-                                )
-                                .padding(14)
-                                .id("approval")
+                        }
+                        // Scroll on new block appended
+                        .onChange(of: session.blocks.count) { _ in
+                            withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                        }
+                        // Scroll while output streams into the active block
+                        .onChange(of: session.blocks.last?.rawOutput) { _ in
+                            proxy.scrollTo("bottom", anchor: .bottom)
+                        }
+                        .onChange(of: showApproval) { shown in
+                            if shown {
+                                withAnimation { proxy.scrollTo("approval", anchor: .bottom) }
                             }
-
-                            Color.clear.frame(height: 8).id("bottom")
                         }
                     }
-                    .onChange(of: session.blocks.count) { _ in
-                        withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
-                    }
-                    .onChange(of: showApproval) { shown in
-                        if shown {
-                            withAnimation { proxy.scrollTo("approval", anchor: .bottom) }
-                        }
-                    }
+                    .background(Color.mosaicBg)
                 }
-                .background(Color.mosaicBg)
             }
 
-            // Smart input bar
             SmartInputBar(
                 text: $session.pendingCommand,
                 onSend: { cmd in

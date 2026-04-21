@@ -6,6 +6,7 @@ import SwiftUI
 // Trigger: command starts with "docker ps" or "docker container ls"
 // Output shape: tabular with columns CONTAINER ID, IMAGE, COMMAND, CREATED, STATUS, PORTS, NAMES
 
+@MainActor
 public final class DockerPsRenderer: OutputRenderer {
     public let id           = "docker.ps"
     public let displayName  = "Container List"

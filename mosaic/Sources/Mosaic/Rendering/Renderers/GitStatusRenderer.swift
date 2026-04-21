@@ -2,6 +2,7 @@ import SwiftUI
 
 // MARK: - GitStatusRenderer
 
+@MainActor
 public final class GitStatusRenderer: OutputRenderer {
     public let id           = "git.status"
     public let displayName  = "Git Status"

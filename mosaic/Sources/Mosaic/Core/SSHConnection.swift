@@ -15,7 +15,9 @@ public final class SSHConnection: NSObject, TerminalConnection {
 
     // MARK: - State
 
-    private(set) public var state: ConnectionState = .disconnected {
+    // Always written on MainActor; read from MainActor (TabBarView).
+    // Delegate callbacks dispatch to main before mutating.
+    @MainActor private(set) public var state: ConnectionState = .disconnected {
         didSet { yieldState(state) }
     }
 
@@ -192,5 +194,10 @@ extension SSHConnection: NMSSHChannelDelegate {
         oc?.finish()
         sc?.yield(.disconnected)
         sc?.finish()
+
+        // Update @MainActor state property on the main thread
+        DispatchQueue.main.async { [weak self] in
+            self?.state = .disconnected
+        }
     }
 }

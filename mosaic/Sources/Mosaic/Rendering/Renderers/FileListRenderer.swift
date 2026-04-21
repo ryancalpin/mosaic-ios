@@ -2,6 +2,7 @@ import SwiftUI
 
 // MARK: - FileListRenderer
 
+@MainActor
 public final class FileListRenderer: OutputRenderer {
     public let id           = "filesystem.ls"
     public let displayName  = "File List"
@@ -13,8 +14,9 @@ public final class FileListRenderer: OutputRenderer {
 
     public func canRender(command: String, output: String) -> Bool {
         let cmd = command.lowercased()
-        let triggersOnCommand = cmd.hasPrefix("ls")
-        // Heuristic: output lines look like permissions strings
+        // Match only `ls` and `ls <flags/path>` — not lsblk, lsof, lscpu, etc.
+        let triggersOnCommand = cmd == "ls" || cmd.hasPrefix("ls ") || cmd.hasPrefix("ls\t")
+        // Heuristic fallback: first non-total line looks like a unix permissions string
         let firstDataLine = output.components(separatedBy: "\n")
             .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty && !$0.hasPrefix("total") }
         let triggersOnOutput = firstDataLine.map {
