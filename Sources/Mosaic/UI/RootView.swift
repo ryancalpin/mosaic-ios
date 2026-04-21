@@ -7,6 +7,7 @@ import SwiftUI
 
 @MainActor
 struct RootView: View {
+    @Environment(AppSettings.self) private var settings
     @ObservedObject private var manager = SessionManager.shared
     @State private var showConnectionSheet = false
     @State private var showSettingsSheet = false
@@ -34,13 +35,27 @@ struct RootView: View {
                     EmptyStateView(onConnect: {
                         showConnectionSheet = true
                     })
+                    .overlay(alignment: .topTrailing) {
+                        Button { showSettingsSheet = true } label: {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 15))
+                                .foregroundColor(.mosaicTextSec)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(8)
+                    }
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(settings.theme.colorScheme)
+        .environment(\.terminalFontSize,    settings.terminalFontSize)
+        .environment(\.outputDensity,       settings.outputDensity)
+        .environment(\.showNativeRenderers, settings.showNativeRenderers)
+        .environment(\.showTimestamps,      settings.showTimestamps)
         .sheet(isPresented: $showSettingsSheet) {
             SettingsSheet()
-                .environment(AppSettings.shared)
         }
         .sheet(isPresented: $showConnectionSheet) {
             ConnectionSheet { connection in

@@ -3,10 +3,42 @@ import SwiftData
 
 @main
 struct MosaicApp: App {
+    let container: ModelContainer
+
+    init() {
+        do {
+            let config = ModelConfiguration(cloudKitDatabase: .none)
+            container = try ModelContainer(for: Connection.self, configurations: config)
+            injectTestSSHKeyIfNeeded(container: container)
+        } catch {
+            fatalError("Failed to create model container: \(error)")
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
-                .modelContainer(for: [Connection.self])
+                .modelContainer(container)
+                .environment(AppSettings.shared)
+                .onAppear { NotificationManager.shared.requestPermission() }
         }
+    }
+
+    // DEBUG ONLY — injects a localhost SSH-key connection for T-SSH-4 testing
+    private func injectTestSSHKeyIfNeeded(container: ModelContainer) {
+        let ctx = ModelContext(container)
+        let existing = try? ctx.fetch(FetchDescriptor<Connection>())
+        guard (existing ?? []).filter({ $0.name == "localhost-key" }).isEmpty else { return }
+        let conn = Connection(name: "localhost-key", hostname: "localhost", port: 22, username: "ryancalpin", transport: .ssh)
+        let key = """
+-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgAwDpRUradu5M7wd2
+O1Mt1YiaX8zZyjahtz59y+41SwOhRANCAAS4UPkYWWLKuyR/Xrch51Yn0a2/RIWC
+wUbV26+Hkoe4GurZdHk6k8AcHhTFq9BZAgIwQ0WGh6A4h6ZtPqH45nGv
+-----END PRIVATE KEY-----
+"""
+        KeychainHelper.savePrivateKey(key, connectionID: conn.id.uuidString)
+        ctx.insert(conn)
+        try? ctx.save()
     }
 }
