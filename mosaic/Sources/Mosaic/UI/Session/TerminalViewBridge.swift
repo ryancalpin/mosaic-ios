@@ -61,6 +61,7 @@ struct TerminalViewBridge: UIViewRepresentable {
 
     // MARK: - Coordinator
 
+    @MainActor
     final class Coordinator: NSObject, TerminalViewDelegate, TerminalFeeder {
         weak var terminalView: TerminalView?
         weak var session: Session?
@@ -74,10 +75,8 @@ struct TerminalViewBridge: UIViewRepresentable {
         // MARK: - TerminalViewDelegate
 
         func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
-            Task { @MainActor [weak self] in
-                guard let session = self?.session else { return }
-                try? await session.connection.resize(cols: newCols, rows: newRows)
-            }
+            guard let session else { return }
+            Task { try? await session.connection.resize(cols: newCols, rows: newRows) }
         }
 
         func setTerminalTitle(source: TerminalView, title: String) {}
@@ -87,11 +86,9 @@ struct TerminalViewBridge: UIViewRepresentable {
         // Route ANSI responses (DA1, cursor reports, device status) back to the server.
         // Without this, interactive programs (vim, htop, less) hang waiting for responses.
         func send(source: TerminalView, data: ArraySlice<UInt8>) {
+            guard let session else { return }
             let d = Data(data)
-            Task { @MainActor [weak self] in
-                guard let session = self?.session else { return }
-                try? await session.connection.sendData(d)
-            }
+            Task { try? await session.connection.sendData(d) }
         }
 
         func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {}

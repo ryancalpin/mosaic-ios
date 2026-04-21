@@ -59,6 +59,9 @@ public final class SessionManager: ObservableObject {
             if activeSessionID == session.id {
                 activeSessionID = sessions.last?.id
             }
+            if let ssh = transport as? SSHConnection {
+                KeychainHelper.deleteCredentials(connectionID: ssh.id.uuidString)
+            }
             throw error
         }
 
