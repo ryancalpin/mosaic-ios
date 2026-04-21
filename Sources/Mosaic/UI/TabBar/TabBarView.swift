@@ -10,33 +10,53 @@ import SwiftUI
 struct TabBarView: View {
     @ObservedObject var manager: SessionManager
     let onAddTab: () -> Void
+    let onSettings: () -> Void
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
-                ForEach(manager.sessions) { session in
-                    TabItemView(
-                        session: session,
-                        isActive: manager.activeSessionID == session.id,
-                        onSelect: { manager.activate(session) },
-                        onClose:  { manager.closeSession(session) }
-                    )
-                }
+        HStack(spacing: 0) {
+            // Scrollable tabs + add button
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(manager.sessions) { session in
+                        TabItemView(
+                            session: session,
+                            isActive: manager.activeSessionID == session.id,
+                            onSelect: { manager.activate(session) },
+                            onClose:  { manager.closeSession(session) }
+                        )
+                    }
 
-                // Add tab button
-                Button {
-                    onAddTab()
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.mosaicTextSec)
-                        .frame(width: 38, height: tabBarHeight)
-                        .contentShape(Rectangle())
+                    // Add tab button
+                    Button {
+                        onAddTab()
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.mosaicTextSec)
+                            .frame(width: 44, height: tabBarHeight)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 4)
                 }
-                .buttonStyle(.plain)
-                .padding(.leading, 4)
+                .padding(.horizontal, 8)
             }
-            .padding(.horizontal, 8)
+
+            // Gear — pinned at trailing edge, outside the scroll view
+            Rectangle()
+                .fill(Color.mosaicBorder)
+                .frame(width: 0.5, height: 20)
+
+            Button {
+                onSettings()
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(.mosaicTextSec)
+                    .frame(width: 44, height: tabBarHeight)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
         .frame(height: tabBarHeight)
         .background(Color.mosaicSurface1)
