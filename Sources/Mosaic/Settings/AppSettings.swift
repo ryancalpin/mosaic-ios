@@ -33,6 +33,7 @@ enum OutputDensity: String, CaseIterable {
 
 // MARK: - AppSettings
 
+@MainActor
 @Observable
 final class AppSettings {
     static let shared = AppSettings()
@@ -60,6 +61,6 @@ final class AppSettings {
         terminalFontSize = size > 0 ? size : 13.0
         outputDensity    = OutputDensity(rawValue: ud.string(forKey: "mosaic.density") ?? "") ?? .standard
         showNativeRenderers = ud.object(forKey: "mosaic.nativeRenderers") as? Bool ?? true
-        showTimestamps   = ud.bool(forKey: "mosaic.timestamps")
+        showTimestamps   = ud.object(forKey: "mosaic.timestamps") as? Bool ?? false
     }
 }
