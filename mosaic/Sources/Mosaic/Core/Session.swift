@@ -108,7 +108,7 @@ public final class Session: ObservableObject, Identifiable {
             + "echo \"__MOSAIC_DONE__\"\n"
             + "echo \"__MOSAIC_PWD__$(pwd)\"\n"
             + "git branch --show-current 2>/dev/null | sed 's/^/__MOSAIC_BRANCH__/'\n"
-            + "git rev-list --count @{u}..HEAD 2>/dev/null | sed 's/^/__MOSAIC_AHEAD__/'\n"
+            + "echo \"__MOSAIC_AHEAD__$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)\"\n"
 
         do {
             try await connection.send(fullCmd)
@@ -160,6 +160,8 @@ public final class Session: ObservableObject, Identifiable {
     // MARK: - Sentinels
 
     private func extractSentinels(from text: String) {
+        var sawBranch = false
+        var sawAhead  = false
         for line in text.components(separatedBy: "\n") {
             let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if t.hasPrefix(Self.pwdMarker) {
@@ -170,12 +172,17 @@ public final class Session: ObservableObject, Identifiable {
                 let branch = String(t.dropFirst(Self.branchMarker.count))
                     .trimmingCharacters(in: .whitespaces)
                 currentBranch = branch.isEmpty ? nil : branch
+                sawBranch = true
             } else if t.hasPrefix(Self.aheadMarker) {
                 let countStr = String(t.dropFirst(Self.aheadMarker.count))
                     .trimmingCharacters(in: .whitespaces)
                 aheadCount = Int(countStr) ?? 0
+                sawAhead = true
             }
         }
+        // Clear stale values when markers are absent (non-git dir, detached HEAD, no upstream)
+        if !sawBranch { currentBranch = nil }
+        if !sawAhead  { aheadCount = 0 }
     }
 
     // MARK: - Finalization
