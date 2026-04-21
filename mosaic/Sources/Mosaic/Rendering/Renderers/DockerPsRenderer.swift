@@ -50,13 +50,18 @@ public final class DockerPsRenderer: OutputRenderer {
         let portsOffset  = headerLine.distance(from: headerLine.startIndex, to: portsRange.lowerBound)
         let namesOffset  = headerLine.distance(from: headerLine.startIndex, to: namesRange.lowerBound)
 
+        guard let headerIndex = lines.firstIndex(where: { $0.contains("CONTAINER ID") }) else {
+            return nil
+        }
+
         var containers: [ContainerRow] = []
 
-        for line in lines.dropFirst() where line.count >= namesOffset {
+        for line in lines[(headerIndex + 1)...] where line.count >= namesOffset {
             func col(from start: Int, to end: Int) -> String {
                 guard start <= line.count else { return "" }
                 let s = line.index(line.startIndex, offsetBy: min(start, line.count))
                 let e = line.index(line.startIndex, offsetBy: min(end, line.count))
+                guard s <= e else { return "" }
                 return String(line[s..<e]).trimmingCharacters(in: .whitespaces)
             }
 
