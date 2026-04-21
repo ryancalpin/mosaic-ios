@@ -28,7 +28,7 @@ struct SettingsSheet: View {
                             Spacer()
                             Text("\(Int(s.terminalFontSize)) pt")
                                 .font(.custom("JetBrains Mono", size: 12))
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         Slider(value: $s.terminalFontSize, in: 9...20, step: 1)
                             .tint(.mosaicAccent)
@@ -36,7 +36,7 @@ struct SettingsSheet: View {
                         // Live preview
                         Text("$ ls -la ~/projects")
                             .font(.custom("JetBrains Mono", size: s.terminalFontSize))
-                            .foregroundColor(.mosaicTextPri)
+                            .foregroundStyle(Color.mosaicTextPri)
                             .padding(10)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color.mosaicBg)
@@ -66,7 +66,7 @@ struct SettingsSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                         .font(.custom("JetBrains Mono", size: 12).weight(.bold))
-                        .foregroundColor(.mosaicAccent)
+                        .foregroundStyle(Color.mosaicAccent)
                 }
             }
         }

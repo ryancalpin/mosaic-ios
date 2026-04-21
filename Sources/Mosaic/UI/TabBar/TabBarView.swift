@@ -48,6 +48,7 @@ struct TabBarView: View {
                 .frame(width: 0.5, height: 20)
 
             Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 onSettings()
             } label: {
                 Image(systemName: "gearshape")
