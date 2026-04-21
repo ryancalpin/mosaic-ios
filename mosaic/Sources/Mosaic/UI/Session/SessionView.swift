@@ -85,7 +85,11 @@ struct SessionView: View {
             SmartInputBar(
                 text: $session.pendingCommand,
                 onSend: { cmd in
-                    Task { await session.send(cmd) }
+                    session.pendingCommand = ""
+                    Task {
+                        do { try await session.send(cmd) }
+                        catch { session.pendingCommand = cmd }  // restore on send failure so user can retry
+                    }
                 },
                 onNeedsApproval: { cmd, tier in
                     approvalCommand = cmd

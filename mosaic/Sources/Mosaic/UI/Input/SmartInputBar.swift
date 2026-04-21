@@ -88,7 +88,7 @@ struct SmartInputBar: View {
         let tier = SafetyClassifier.shared.classify(cmd)
         switch tier {
         case .safe:
-            text = ""
+            // Caller (SessionView.onSend) clears pendingCommand and restores it on failure
             onSend(cmd)
         case .tier3:
             // Don't clear text — same cancel-recovery contract as tier1/tier2.

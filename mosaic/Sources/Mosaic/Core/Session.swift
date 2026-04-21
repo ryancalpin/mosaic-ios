@@ -154,7 +154,9 @@ public final class Session: ObservableObject, Identifiable {
             // the overlap contains ANSI sequences that strip to fewer clean chars.
             let rawOverlapOnly = ns.substring(with: NSRange(location: ns.length - textNSLen - kOverlap,
                                                             length: kOverlap))
-            let cleanOverlapLen = rawOverlapOnly.strippingANSI.count
+            // Use NSString.length (UTF-16 units) consistently with the NSMutableString deletion
+            // below so that multi-byte grapheme clusters don't cause under-deletion.
+            let cleanOverlapLen = (rawOverlapOnly.strippingANSI as NSString).length
             let cleanNS = NSMutableString(string: pendingQueue[0].cleanBuffer)
             let removeLen = min(cleanOverlapLen, cleanNS.length)
             if removeLen > 0 {
@@ -169,10 +171,14 @@ public final class Session: ObservableObject, Identifiable {
 
         // Filter sentinel lines and the PTY command echo from the live display
         let allMarkers = [Self.doneMarker, Self.pwdMarker, Self.branchMarker, Self.aheadMarker]
-        let cmdEcho = pendingQueue[0].block.command.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Compare only the first line of the command echo — multi-line commands would have
+        // embedded newlines that can never match a single displayLines.first.
+        let cmdEchoFirstLine = pendingQueue[0].block.command
+            .components(separatedBy: "\n").first?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         var displayLines = clean.components(separatedBy: "\n")
         // Strip the first line if it's the PTY echo of the command
-        if displayLines.first?.trimmingCharacters(in: .whitespacesAndNewlines) == cmdEcho {
+        if displayLines.first?.trimmingCharacters(in: .whitespacesAndNewlines) == cmdEchoFirstLine {
             displayLines.removeFirst()
         }
         pendingQueue[0].block.rawOutput = displayLines
