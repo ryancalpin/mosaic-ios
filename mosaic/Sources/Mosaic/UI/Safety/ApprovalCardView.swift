@@ -2,9 +2,10 @@ import SwiftUI
 
 // MARK: - ApprovalCardView
 //
-// Shown inline when a Tier 1 or Tier 2 command is intercepted.
+// Shown inline when a Tier 1, Tier 2, or Tier 3 command is intercepted.
 // Tier 1: requires 2-second hold-to-confirm.
 // Tier 2: requires single tap to confirm.
+// Tier 3: yellow warning, auto-proceeds after 1.5 seconds.
 
 @MainActor
 struct ApprovalCardView: View {
@@ -16,9 +17,16 @@ struct ApprovalCardView: View {
     @State private var holdProgress: CGFloat = 0.0
     @State private var holdTimer: Timer? = nil
     @State private var isHolding = false
+    @State private var tier3Progress: CGFloat = 0.0
+    @State private var tier3Timer: Timer? = nil
 
     private var isTier1: Bool {
         if case .tier1 = tier { return true }
+        return false
+    }
+
+    private var isTier3: Bool {
+        if case .tier3 = tier { return true }
         return false
     }
 
@@ -37,7 +45,7 @@ struct ApprovalCardView: View {
             HStack(spacing: 8) {
                 Image(systemName: isTier1 ? "exclamationmark.triangle.fill" : "exclamationmark.circle.fill")
                     .foregroundColor(isTier1 ? .mosaicRed : .mosaicWarn)
-                Text(isTier1 ? "DESTRUCTIVE COMMAND" : "CONFIRM ACTION")
+                Text(isTier1 ? "DESTRUCTIVE COMMAND" : isTier3 ? "CAUTION" : "CONFIRM ACTION")
                     .font(.custom("JetBrains Mono", size: 9).weight(.bold))
                     .kerning(0.4)
                     .foregroundColor(isTier1 ? .mosaicRed : .mosaicWarn)
@@ -57,6 +65,24 @@ struct ApprovalCardView: View {
             Text(reason)
                 .font(.system(size: 12))
                 .foregroundColor(.mosaicTextSec)
+
+            // Tier 3: auto-proceed progress bar
+            if isTier3 {
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.mosaicWarn.opacity(0.15))
+                        .frame(height: 4)
+                    GeometryReader { geo in
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.mosaicWarn.opacity(0.6))
+                            .frame(width: geo.size.width * tier3Progress)
+                            .animation(.linear(duration: 0.05), value: tier3Progress)
+                    }
+                    .frame(height: 4)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                .frame(height: 4)
+            }
 
             // Buttons
             HStack(spacing: 10) {
@@ -109,7 +135,34 @@ struct ApprovalCardView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(isTier1 ? Color.mosaicRed.opacity(0.3) : Color.mosaicWarn.opacity(0.3), lineWidth: 1)
         )
-        .onDisappear { cancelHolding() }  // prevent timer leak if view is dismissed mid-hold
+        .onDisappear {
+            cancelHolding()
+            tier3Timer?.invalidate()
+            tier3Timer = nil
+        }
+        .onAppear {
+            if isTier3 { startTier3AutoConfirm() }
+        }
+    }
+
+    // MARK: - Tier 3 Auto-Confirm
+
+    private func startTier3AutoConfirm() {
+        guard tier3Timer == nil else { return }
+        let start = Date()
+        let t = Timer(timeInterval: 0.05, repeats: true) { _ in
+            MainActor.assumeIsolated {
+                let elapsed = Date().timeIntervalSince(start)
+                tier3Progress = min(CGFloat(elapsed / 1.5), 1.0)
+                if tier3Progress >= 1.0 {
+                    tier3Timer?.invalidate()
+                    tier3Timer = nil
+                    onConfirm()
+                }
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        tier3Timer = t
     }
 
     // MARK: - Hold Timer

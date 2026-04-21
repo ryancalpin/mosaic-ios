@@ -91,9 +91,8 @@ struct SmartInputBar: View {
             text = ""
             onSend(cmd)
         case .tier3:
-            // Auto-dismiss warning — proceed after brief delay
             text = ""
-            onSend(cmd)
+            onNeedsApproval(cmd, tier)
         case .tier1, .tier2:
             text = ""
             onNeedsApproval(cmd, tier)

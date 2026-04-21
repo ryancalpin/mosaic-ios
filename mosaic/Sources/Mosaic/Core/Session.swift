@@ -138,10 +138,15 @@ public final class Session: ObservableObject, Identifiable {
         pendingQueue[0].buffer += text
         // Re-strip from the full buffer so escape sequences split across Data chunks are handled correctly
         let clean = pendingQueue[0].buffer.strippingANSI
-        // Filter sentinel lines from the live display so users never see scaffold text while streaming
+        // Filter sentinel lines and the PTY command echo from the live display
         let allMarkers = [Self.doneMarker, Self.pwdMarker, Self.branchMarker, Self.aheadMarker]
-        pendingQueue[0].block.rawOutput = clean
-            .components(separatedBy: "\n")
+        let cmdEcho = pendingQueue[0].block.command.trimmingCharacters(in: .whitespacesAndNewlines)
+        var displayLines = clean.components(separatedBy: "\n")
+        // Strip the first line if it's the PTY echo of the command
+        if displayLines.first?.trimmingCharacters(in: .whitespacesAndNewlines) == cmdEcho {
+            displayLines.removeFirst()
+        }
+        pendingQueue[0].block.rawOutput = displayLines
             .filter { line in
                 let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 return !allMarkers.contains(where: { t.hasPrefix($0) })
