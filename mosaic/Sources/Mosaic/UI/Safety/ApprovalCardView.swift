@@ -117,7 +117,7 @@ struct ApprovalCardView: View {
         guard holdTimer == nil else { return }
         isHolding = true
         let start = Date()
-        let t = Timer(timeInterval: 0.05, repeats: true) { @MainActor _ in
+        let t = Timer(timeInterval: 0.05, repeats: true) { _ in
             let elapsed = Date().timeIntervalSince(start)
             holdProgress = min(CGFloat(elapsed / 2.0), 1.0)
             if holdProgress >= 1.0 {

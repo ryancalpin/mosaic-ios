@@ -40,18 +40,18 @@ public final class SSHConnection: NSObject, TerminalConnection {
     }
 
     public lazy var stateStream: AsyncStream<ConnectionState> = {
-        AsyncStream { [weak self] continuation in
-            self?.continuationLock.lock()
-            self?._stateContinuation = continuation
-            self?.continuationLock.unlock()
+        AsyncStream { continuation in
+            self.continuationLock.lock()
+            self._stateContinuation = continuation
+            self.continuationLock.unlock()
         }
     }()
 
     public lazy var outputStream: AsyncStream<Data> = {
-        AsyncStream { [weak self] continuation in
-            self?.continuationLock.lock()
-            self?._outputContinuation = continuation
-            self?.continuationLock.unlock()
+        AsyncStream { continuation in
+            self.continuationLock.lock()
+            self._outputContinuation = continuation
+            self.continuationLock.unlock()
         }
     }()
 
