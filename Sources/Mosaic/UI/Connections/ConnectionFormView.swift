@@ -55,7 +55,9 @@ struct ConnectionFormView: View {
     private var isEditing: Bool { connection != nil }
 
     private var canSave: Bool {
-        !name.isEmpty && !hostname.isEmpty && !username.isEmpty && Int(port) != nil
+        guard !name.isEmpty, !hostname.isEmpty, !username.isEmpty,
+              let p = Int(port), (1...65535).contains(p) else { return false }
+        return useKeyAuth ? !privateKey.isEmpty : !password.isEmpty
     }
 
     // MARK: - Body
@@ -124,13 +126,16 @@ struct ConnectionFormView: View {
                                     .font(.custom("JetBrains Mono", size: 10))
                                     .foregroundStyle(Color.mosaicTextPri)
                                     .frame(height: 100)
+                                    .scrollContentBackground(.hidden)
                                     .background(Color.mosaicSurface2)
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
                             }
-                            field("Passphrase (optional)", text: $password, placeholder: "")
+                            field("Passphrase", text: $password, placeholder: "optional")
                                 .textContentType(.password)
+                                .submitLabel(.done)
                         } else {
                             secureField("Password", text: $password)
+                                .submitLabel(.done)
                         }
                     }
 
