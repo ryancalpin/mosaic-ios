@@ -67,6 +67,9 @@ public final class SessionManager: ObservableObject {
 
     public func closeSession(_ session: Session) {
         session.stop()
+        if let ssh = session.connection as? SSHConnection {
+            KeychainHelper.deleteCredentials(connectionID: ssh.id.uuidString)
+        }
         sessions.removeAll { $0.id == session.id }
         if activeSessionID == session.id {
             activeSessionID = sessions.last?.id

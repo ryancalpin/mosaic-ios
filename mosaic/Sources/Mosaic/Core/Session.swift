@@ -64,6 +64,11 @@ public final class Session: ObservableObject, Identifiable {
     public func stop() {
         outputTask?.cancel()
         outputTask = nil
+        for entry in pendingQueue {
+            entry.block.rawOutput += "\n[session closed]"
+            entry.block.isStreaming = false
+        }
+        pendingQueue.removeAll()
         Task { await connection.disconnect() }
     }
 
@@ -106,7 +111,8 @@ public final class Session: ObservableObject, Identifiable {
         guard !pendingQueue.isEmpty else { return }
 
         pendingQueue[0].buffer += text
-        pendingQueue[0].block.rawOutput += text.strippingANSI
+        // Re-strip from the full buffer so escape sequences split across Data chunks are handled correctly
+        pendingQueue[0].block.rawOutput = pendingQueue[0].buffer.strippingANSI
 
         let clean = pendingQueue[0].buffer.strippingANSI
         let cleanLines = clean.components(separatedBy: CharacterSet.newlines)

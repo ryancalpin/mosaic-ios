@@ -91,6 +91,10 @@ public final class SSHConnection: NSObject, TerminalConnection {
             if let key = privateKey {
                 let pass = password ?? ""
                 s.authenticateBy(inMemoryPublicKey: nil, privateKey: key, andPassword: pass.isEmpty ? nil : pass)
+                // Fall back to password if key auth failed and a password is available
+                if !s.isAuthorized, let pw = password {
+                    s.authenticate(byPassword: pw)
+                }
             } else if let pw = password {
                 s.authenticate(byPassword: pw)
             } else {
