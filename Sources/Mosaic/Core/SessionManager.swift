@@ -38,8 +38,7 @@ public final class SessionManager: ObservableObject {
         case .ssh:
             transport = SSHConnection(connectionInfo: info)
         case .mosh:
-            // Mosh not yet integrated — fall back to SSH
-            transport = SSHConnection(connectionInfo: info)
+            transport = MoshConnection(connectionInfo: info)
         }
 
         let session = Session(connection: transport)
@@ -72,6 +71,12 @@ public final class SessionManager: ObservableObject {
 
     public func activate(_ session: Session) {
         activeSessionID = session.id
+    }
+
+    public func activate(at oneBasedIndex: Int) {
+        let idx = oneBasedIndex - 1
+        guard sessions.indices.contains(idx) else { return }
+        activeSessionID = sessions[idx].id
     }
 
 }

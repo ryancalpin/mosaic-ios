@@ -20,9 +20,11 @@ struct MosaicApp: App {
         }
     }
 
+    @State private var showConnectionSheet = false
+
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(externalShowConnectionSheet: $showConnectionSheet)
                 .modelContainer(container)
                 .environment(AppSettings.shared)
                 .onAppear { NotificationManager.shared.requestPermission() }
@@ -42,6 +44,9 @@ struct MosaicApp: App {
                         _ = await SessionManager.shared.openSessionThrowing(for: connection)
                     }
                 }
+        }
+        .commands {
+            MosaicCommands(showConnectionSheet: $showConnectionSheet)
         }
     }
 

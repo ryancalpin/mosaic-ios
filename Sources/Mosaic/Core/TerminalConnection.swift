@@ -90,7 +90,7 @@ public enum ConnectionState: Equatable, Sendable {
 
 // MARK: - ConnectionError
 
-public enum ConnectionError: LocalizedError {
+public enum ConnectionError: LocalizedError, Equatable {
     case authenticationFailed
     case hostUnreachable
     case moshServerNotFound
@@ -111,4 +111,12 @@ public enum ConnectionError: LocalizedError {
     public var offerSSHFallback: Bool {
         self == .moshServerNotFound
     }
+}
+
+// MARK: - TerminalSignal
+
+public enum TerminalSignal {
+    case interrupt   // Ctrl-C  → \u{03}
+    case suspend     // Ctrl-Z  → \u{1A}
+    case quit        // Ctrl-\  → \u{1C}
 }

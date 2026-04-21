@@ -77,6 +77,14 @@ struct SessionView: View {
                                 withAnimation { proxy.scrollTo("approval", anchor: .bottom) }
                             }
                         }
+                        // Keyboard shortcut scroll notifications
+                        .onReceive(NotificationCenter.default.publisher(for: .mosaicScrollToTop)) { _ in
+                            guard let firstID = session.blocks.first?.id else { return }
+                            withAnimation { proxy.scrollTo(firstID, anchor: .top) }
+                        }
+                        .onReceive(NotificationCenter.default.publisher(for: .mosaicScrollToBottom)) { _ in
+                            withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                        }
                     }
                     .background(Color.mosaicBg)
                 }

@@ -133,6 +133,18 @@ public final class Session: ObservableObject, Identifiable {
         }
     }
 
+    public func sendSignal(_ signal: TerminalSignal) {
+        let byte: String
+        switch signal {
+        case .interrupt: byte = "\u{03}"
+        case .suspend:   byte = "\u{1A}"
+        case .quit:      byte = "\u{1C}"
+        }
+        Task { @MainActor [weak self] in
+            try? await self?.connection.send(byte)
+        }
+    }
+
     // MARK: - Output Handling
 
     @MainActor
@@ -266,6 +278,9 @@ public final class Session: ObservableObject, Identifiable {
         }
 
         block.isStreaming = false
+
+        let duration = Date().timeIntervalSince(block.timestamp)
+        NotificationManager.shared.notifyCommandComplete(command: block.command, duration: duration)
     }
 }
 

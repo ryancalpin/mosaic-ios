@@ -13,6 +13,21 @@ struct RootView: View {
     @State private var showAITab  = false
     @State private var aiSession: AISession? = nil
 
+    // External binding from MosaicApp for keyboard shortcut wiring
+    private let externalConnectionSheetBinding: Binding<Bool>?
+
+    init(externalShowConnectionSheet: Binding<Bool>? = nil) {
+        self.externalConnectionSheetBinding = externalShowConnectionSheet
+    }
+
+    private var connectionSheetBinding: Binding<Bool> {
+        guard let ext = externalConnectionSheetBinding else { return $showConnectionSheet }
+        return Binding(
+            get: { ext.wrappedValue || showConnectionSheet },
+            set: { v in ext.wrappedValue = v; showConnectionSheet = v }
+        )
+    }
+
     var body: some View {
         Group {
             if sizeClass == .regular {
@@ -29,7 +44,7 @@ struct RootView: View {
         .sheet(isPresented: $showSettingsSheet) {
             SettingsSheet()
         }
-        .sheet(isPresented: $showConnectionSheet) {
+        .sheet(isPresented: connectionSheetBinding) {
             ConnectionSheet { connection in
                 Task {
                     if let err = await manager.openSessionThrowing(for: connection) {
@@ -68,7 +83,7 @@ struct RootView: View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(
                 manager: manager,
-                onAddTab:   { showConnectionSheet = true },
+                onAddTab:   { connectionSheetBinding.wrappedValue = true },
                 onSettings: { showSettingsSheet = true }
             )
             .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
@@ -77,7 +92,7 @@ struct RootView: View {
                 SessionView(session: session)
                     .id(session.id)
             } else {
-                EmptyStateView(onConnect: { showConnectionSheet = true })
+                EmptyStateView(onConnect: { connectionSheetBinding.wrappedValue = true })
             }
         }
         .navigationSplitViewStyle(.balanced)
@@ -90,7 +105,7 @@ struct RootView: View {
                 if !manager.sessions.isEmpty {
                     TabBarView(
                         manager:      manager,
-                        onAddTab:     { showConnectionSheet = true },
+                        onAddTab:     { connectionSheetBinding.wrappedValue = true },
                         onSettings:   { showSettingsSheet = true },
                         onToggleAI:   {
                             showAITab.toggle()
@@ -110,7 +125,7 @@ struct RootView: View {
                     SessionView(session: session)
                         .id(session.id)
                 } else {
-                    EmptyStateView(onConnect: { showConnectionSheet = true })
+                    EmptyStateView(onConnect: { connectionSheetBinding.wrappedValue = true })
                         .overlay(alignment: .topTrailing) {
                             Button { showSettingsSheet = true } label: {
                                 Image(systemName: "gearshape")
