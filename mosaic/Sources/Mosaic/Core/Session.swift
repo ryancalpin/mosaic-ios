@@ -24,6 +24,7 @@ public final class Session: ObservableObject, Identifiable {
     @Published public var currentBranch: String? = nil
     @Published public var aheadCount: Int = 0
     @Published public var pendingCommand: String = ""
+    @Published public var connectionState: ConnectionState = .disconnected
 
     // Owned strongly — TerminalViewBridge.Coordinator. Held here so
     // it survives tab switches when SwiftUI may tear down the view.
@@ -58,6 +59,12 @@ public final class Session: ObservableObject, Identifiable {
             guard let self else { return }
             for await data in connection.outputStream {
                 self.handleOutput(data)
+            }
+        }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await state in connection.stateStream {
+                self.connectionState = state
             }
         }
     }
@@ -178,8 +185,10 @@ public final class Session: ObservableObject, Identifiable {
             .components(separatedBy: "\n").first?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         var displayLines = clean.components(separatedBy: "\n")
-        // Strip the first line if it's the PTY echo of the command
-        if displayLines.first?.trimmingCharacters(in: .whitespacesAndNewlines) == cmdEchoFirstLine {
+        // Strip the first line if it's the PTY echo of the command.
+        // Guard against empty cmdEchoFirstLine to avoid stripping blank output lines.
+        if !cmdEchoFirstLine.isEmpty,
+           displayLines.first?.trimmingCharacters(in: .whitespacesAndNewlines) == cmdEchoFirstLine {
             displayLines.removeFirst()
         }
         pendingQueue[0].block.rawOutput = displayLines

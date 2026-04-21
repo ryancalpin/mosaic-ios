@@ -218,6 +218,8 @@ extension SSHConnection: NMSSHChannelDelegate {
         // then clear and finish the continuations.
         Task { @MainActor [weak self] in
             guard let self, self.nmChannel != nil else { return }
+            self.nmChannel = nil   // prevent disconnect() from calling closeShell() on an already-closed channel
+            self.nmSession = nil
             self.state = .disconnected   // didSet → yieldState → yields to live continuation
 
             self.continuationLock.lock()

@@ -61,7 +61,7 @@ struct TabItemView: View {
     let onClose: () -> Void
 
     private var connInfo: ConnectionInfo { session.connection.connectionInfo }
-    private var connState: ConnectionState { session.connection.state }
+    private var connState: ConnectionState { session.connectionState }
 
     var body: some View {
         Button(action: onSelect) {
