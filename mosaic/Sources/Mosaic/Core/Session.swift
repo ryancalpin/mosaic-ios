@@ -77,7 +77,7 @@ public final class Session: ObservableObject, Identifiable {
         outputTask = nil
         for entry in pendingQueue {
             entry.block.rawOutput += "\n[session closed]"
-            entry.block.isStreaming = false
+            finalizeBlock(entry.block)  // strips ANSI+sentinels, sets cachedRendererResult and isStreaming=false
         }
         pendingQueue.removeAll()
     }
