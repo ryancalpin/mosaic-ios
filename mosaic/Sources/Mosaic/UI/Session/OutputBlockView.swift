@@ -1,18 +1,13 @@
 import SwiftUI
 
 // MARK: - OutputBlockView
-//
-// Renders one OutputBlock — one command + its output.
-// If the block has a native renderer, shows NativeBadge + renderer view.
-// Tap badge toggles to raw and back.
 
 struct OutputBlockView: View {
-    var block: OutputBlock
-    let registry = RendererRegistry.shared
+    @ObservedObject var block: OutputBlock
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Command prompt line
+            // Command line
             HStack(spacing: 6) {
                 Text("›")
                     .font(.custom("JetBrains Mono", size: 12).weight(.bold))
@@ -30,21 +25,21 @@ struct OutputBlockView: View {
 
             // Output
             if block.isStreaming && block.rawOutput.isEmpty {
-                // Nothing yet
-            } else if block.isNativelyRendered, let label = block.rendererBadgeLabel {
-                NativeOutputView(block: block, label: label, registry: registry)
+                EmptyView()
+            } else if block.isNativelyRendered,
+                      let label = block.rendererBadgeLabel,
+                      let result = block.cachedRendererResult {
+                NativeOutputView(label: label, result: result, rawOutput: block.rawOutput)
             } else {
-                rawTextView
+                rawText(block.rawOutput)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
     }
 
-    // MARK: - Subviews
-
-    private var rawTextView: some View {
-        Text(block.rawOutput.strippingANSI)
+    private func rawText(_ output: String) -> some View {
+        Text(output)
             .font(.custom("JetBrains Mono", size: 11))
             .foregroundColor(.mosaicTextPri)
             .textSelection(.enabled)
@@ -52,12 +47,12 @@ struct OutputBlockView: View {
     }
 }
 
-// MARK: - NativeOutputView (separate view to own showingRaw state)
+// MARK: - NativeOutputView
 
 private struct NativeOutputView: View {
-    let block: OutputBlock
     let label: String
-    let registry: RendererRegistry
+    let result: RendererResult
+    let rawOutput: String
 
     @State private var showingRaw = false
 
@@ -75,7 +70,7 @@ private struct NativeOutputView: View {
     }
 
     private var rawView: some View {
-        Text(block.rawOutput.strippingANSI)
+        Text(rawOutput)
             .font(.custom("JetBrains Mono", size: 11))
             .foregroundColor(.mosaicTextPri)
             .textSelection(.enabled)
@@ -84,12 +79,9 @@ private struct NativeOutputView: View {
 
     @ViewBuilder
     private var nativeView: some View {
-        let result = registry.process(
-            command: block.command,
-            output:  block.rawOutput.strippingANSI
-        )
-        if case .native(let r, let data, _) = result {
-            r.view(for: data)
+        // Use the pre-computed result — no re-parsing on render
+        if case .native(let renderer, let data, _) = result {
+            renderer.view(for: data)
         } else {
             rawView
         }

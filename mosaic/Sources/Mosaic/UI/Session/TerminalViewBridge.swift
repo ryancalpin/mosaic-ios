@@ -26,15 +26,14 @@ struct TerminalViewBridge: UIViewRepresentable {
         tv.backgroundColor = UIColor(Color.mosaicBg)
         tv.nativeBackgroundColor = UIColor(Color.mosaicBg)
 
-        // Register coordinator with session so SSH bytes flow through SwiftTerm
         context.coordinator.terminalView = tv
+        // Store coordinator strongly on Session so it survives tab switches
         session.terminalCoordinator = context.coordinator
 
         return tv
     }
 
     func updateUIView(_ uiView: TerminalView, context: Context) {
-        // Keep coordinator registered if session changes
         context.coordinator.terminalView = uiView
         session.terminalCoordinator = context.coordinator
     }

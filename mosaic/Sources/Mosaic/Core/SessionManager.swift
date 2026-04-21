@@ -49,18 +49,20 @@ public final class SessionManager: ObservableObject {
         let session = Session(connection: transport)
         sessions.append(session)
         activeSessionID = session.id
-        session.start()
 
+        // connect() must complete before start() so the AsyncStream continuations
+        // are initialized before NMSSH begins firing delegate callbacks.
         do {
             try await transport.connect()
         } catch {
-            // Remove the session if connection fails
             sessions.removeAll { $0.id == session.id }
             if activeSessionID == session.id {
                 activeSessionID = sessions.last?.id
             }
             throw error
         }
+
+        session.start()
     }
 
     public func closeSession(_ session: Session) {

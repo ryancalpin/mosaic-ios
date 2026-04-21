@@ -67,7 +67,9 @@ struct ConnectionSheet: View {
         ScrollView {
             LazyVStack(spacing: 8) {
                 if showNewForm {
-                    NewConnectionForm { newConn in
+                    // inlineMode: true prevents NewConnectionForm from calling its own
+                    // dismiss() which would close the parent ConnectionSheet
+                    NewConnectionForm(inlineMode: true) { newConn in
                         context.insert(newConn)
                         try? context.save()
                         showNewForm = false
@@ -150,6 +152,7 @@ struct ConnectionCard: View {
 // MARK: - NewConnectionForm
 
 struct NewConnectionForm: View {
+    var inlineMode: Bool = false   // true when embedded directly (not in its own sheet)
     let onSave: (Connection) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -303,6 +306,8 @@ struct NewConnectionForm: View {
         }
 
         onSave(conn)
-        dismiss()
+        // inlineMode: parent controls teardown via showNewForm = false in onSave closure.
+        // Calling dismiss() here would close the parent ConnectionSheet entirely.
+        if !inlineMode { dismiss() }
     }
 }

@@ -124,7 +124,9 @@ public enum SafetyTier: Equatable {
     }
 
     public var isImmediate: Bool {
-        if case .safe = self { return true }
-        return false
+        switch self {
+        case .safe, .tier3: return true
+        case .tier2, .tier1: return false
+        }
     }
 }

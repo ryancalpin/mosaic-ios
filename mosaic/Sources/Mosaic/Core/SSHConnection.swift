@@ -5,6 +5,9 @@ import NMSSH
 //
 // TerminalConnection implementation backed by NMSSH (libssh2).
 // Credentials are loaded from Keychain — never stored in this object.
+//
+// Thread safety: NMSSH delegate callbacks fire on libssh2's internal thread.
+// All continuation access is protected by continuationLock.
 
 public final class SSHConnection: NSObject, TerminalConnection {
     public let id            = UUID()
@@ -13,21 +16,40 @@ public final class SSHConnection: NSObject, TerminalConnection {
     // MARK: - State
 
     private(set) public var state: ConnectionState = .disconnected {
-        didSet { stateContinuation?.yield(state) }
+        didSet { yieldState(state) }
     }
 
-    private var stateContinuation:  AsyncStream<ConnectionState>.Continuation?
-    private var outputContinuation: AsyncStream<Data>.Continuation?
+    private let continuationLock = NSLock()
+    private var _stateContinuation:  AsyncStream<ConnectionState>.Continuation?
+    private var _outputContinuation: AsyncStream<Data>.Continuation?
+
+    private func yieldState(_ s: ConnectionState) {
+        continuationLock.lock()
+        let c = _stateContinuation
+        continuationLock.unlock()
+        c?.yield(s)
+    }
+
+    private func yieldOutput(_ data: Data) {
+        continuationLock.lock()
+        let c = _outputContinuation
+        continuationLock.unlock()
+        c?.yield(data)
+    }
 
     public lazy var stateStream: AsyncStream<ConnectionState> = {
-        AsyncStream { continuation in
-            self.stateContinuation = continuation
+        AsyncStream { [weak self] continuation in
+            self?.continuationLock.lock()
+            self?._stateContinuation = continuation
+            self?.continuationLock.unlock()
         }
     }()
 
     public lazy var outputStream: AsyncStream<Data> = {
-        AsyncStream { continuation in
-            self.outputContinuation = continuation
+        AsyncStream { [weak self] continuation in
+            self?.continuationLock.lock()
+            self?._outputContinuation = continuation
+            self?.continuationLock.unlock()
         }
     }()
 
@@ -35,12 +57,15 @@ public final class SSHConnection: NSObject, TerminalConnection {
 
     private var nmSession: NMSSHSession?
     private var nmChannel: NMSSHChannel?
-    private var readTask: Task<Void, Never>?
 
     // MARK: - Init
 
     public init(connectionInfo: ConnectionInfo) {
         self.connectionInfo = connectionInfo
+        super.init()
+        // Eagerly initialize streams so continuations are set before connect() fires bytes
+        _ = stateStream
+        _ = outputStream
     }
 
     // MARK: - TerminalConnection
@@ -50,8 +75,8 @@ public final class SSHConnection: NSObject, TerminalConnection {
 
         let info = connectionInfo
         let session = NMSSHSession(
-            toHost: info.hostname,
-            port:   Int32(info.port),
+            toHost:       info.hostname,
+            port:         Int32(info.port),
             withUsername: info.username
         )
 
@@ -63,7 +88,6 @@ public final class SSHConnection: NSObject, TerminalConnection {
         // Authenticate
         let connID = id.uuidString
         if let key = KeychainHelper.loadPrivateKey(connectionID: connID) {
-            // Key-based auth
             let passphrase = KeychainHelper.loadPassword(connectionID: connID) ?? ""
             session.authenticateBy(
                 inMemoryPublicKey: nil,
@@ -84,7 +108,6 @@ public final class SSHConnection: NSObject, TerminalConnection {
             throw ConnectionError.authenticationFailed
         }
 
-        // Open interactive shell channel
         guard let channel = session.channel else {
             session.disconnect()
             throw ConnectionError.unknown("Could not create channel")
@@ -104,20 +127,24 @@ public final class SSHConnection: NSObject, TerminalConnection {
         nmSession = session
         nmChannel = channel
         state = .connected
-
-        // Start reading output
-        startReading()
     }
 
     public func disconnect() async {
-        readTask?.cancel()
         nmChannel?.closeShell()
         nmSession?.disconnect()
-        nmChannel  = nil
-        nmSession  = nil
+        nmChannel = nil
+        nmSession = nil
         state = .disconnected
-        stateContinuation?.finish()
-        outputContinuation?.finish()
+
+        continuationLock.lock()
+        let sc = _stateContinuation
+        let oc = _outputContinuation
+        _stateContinuation  = nil
+        _outputContinuation = nil
+        continuationLock.unlock()
+
+        sc?.finish()
+        oc?.finish()
     }
 
     public func send(_ input: String) async throws {
@@ -139,37 +166,31 @@ public final class SSHConnection: NSObject, TerminalConnection {
     public func resize(cols: Int, rows: Int) async throws {
         nmChannel?.requestSizeWidth(UInt(cols), height: UInt(rows))
     }
-
-    // MARK: - Read Loop
-
-    private func startReading() {
-        readTask = Task {
-            while !Task.isCancelled {
-                // NMSSH delivers output via delegate (NMSSHChannelDelegate)
-                // so we just yield here to keep the task alive
-                try? await Task.sleep(nanoseconds: 100_000_000)
-            }
-        }
-    }
 }
 
 // MARK: - NMSSHChannelDelegate
+// These fire on NMSSH's libssh2 thread — use continuationLock for all access.
 
 extension SSHConnection: NMSSHChannelDelegate {
-    // Prefer raw bytes — preserve all terminal control sequences intact for SwiftTerm
     public func channel(_ channel: NMSSHChannel, didReadRawData data: Data) {
-        outputContinuation?.yield(data)
+        yieldOutput(data)
     }
 
     public func channel(_ channel: NMSSHChannel, didReadData message: String) {
-        // Fallback if didReadRawData is not called (older NMSSH versions)
         guard let data = message.data(using: .utf8) else { return }
-        outputContinuation?.yield(data)
+        yieldOutput(data)
     }
 
     public func channelShellDidClose(_ channel: NMSSHChannel) {
-        state = .disconnected
-        outputContinuation?.finish()
-        stateContinuation?.finish()
+        continuationLock.lock()
+        let sc = _stateContinuation
+        let oc = _outputContinuation
+        _stateContinuation  = nil
+        _outputContinuation = nil
+        continuationLock.unlock()
+
+        oc?.finish()
+        sc?.yield(.disconnected)
+        sc?.finish()
     }
 }
