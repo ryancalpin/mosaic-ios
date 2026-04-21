@@ -93,6 +93,7 @@ public final class Session: ObservableObject, Identifiable {
     // MARK: - Sending Commands
 
     public func send(_ command: String) async {
+        guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         let block = OutputBlock(command: command)
         block.isStreaming = true
         blocks.append(block)
