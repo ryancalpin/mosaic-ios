@@ -127,18 +127,18 @@ struct StatusDot: View {
             .frame(width: 6, height: 6)
             .scaleEffect(pulsing ? 1.3 : 1.0)
             .opacity(pulsing ? 0.6 : 1.0)
-            .animation(
-                state == .connected
-                    ? .easeInOut(duration: 1.5).repeatForever(autoreverses: true)
-                    : .default,
-                value: pulsing
-            )
-            .onAppear {
-                if state == .connected { pulsing = true }
+            .onAppear { setPulsing(state == .connected) }
+            .onChange(of: state) { setPulsing(state == .connected) }
+    }
+
+    private func setPulsing(_ shouldPulse: Bool) {
+        if shouldPulse {
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                pulsing = true
             }
-            .onChange(of: state) {
-                pulsing = (state == .connected)
-            }
+        } else {
+            withAnimation(.default) { pulsing = false }
+        }
     }
 }
 

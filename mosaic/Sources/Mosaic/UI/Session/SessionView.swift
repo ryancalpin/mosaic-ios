@@ -86,10 +86,7 @@ struct SessionView: View {
                 text: $session.pendingCommand,
                 onSend: { cmd in
                     session.pendingCommand = ""
-                    Task {
-                        do { try await session.send(cmd) }
-                        catch { session.pendingCommand = cmd }  // restore on send failure so user can retry
-                    }
+                    Task { await session.send(cmd) }
                 },
                 onNeedsApproval: { cmd, tier in
                     approvalCommand = cmd

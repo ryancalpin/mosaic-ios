@@ -72,9 +72,9 @@ public final class Session: ObservableObject, Identifiable {
     public func stop() async {
         headTimeoutTask?.cancel()
         headTimeoutTask = nil
+        await connection.disconnect()  // finishes outputStream so the for-await loop drains before we clear the queue
         outputTask?.cancel()
         outputTask = nil
-        await connection.disconnect()  // close stream before clearing queue — prevents handleOutput accessing empty pendingQueue
         for entry in pendingQueue {
             entry.block.rawOutput += "\n[session closed]"
             entry.block.isStreaming = false

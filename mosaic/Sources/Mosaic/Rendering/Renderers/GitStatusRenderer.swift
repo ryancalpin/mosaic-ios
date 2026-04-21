@@ -46,6 +46,15 @@ public final class GitStatusRenderer: OutputRenderer {
             } else if trimmed.contains("Untracked files") {
                 inStagedSection   = false
                 inUntrackedSection = true
+            } else if trimmed.contains("diverged") {
+                // "Your branch and 'origin/main' have diverged, and have 3 and 1 different commits each"
+                let parts = trimmed.components(separatedBy: " ")
+                if let haveIdx = parts.firstIndex(of: "have"), haveIdx + 1 < parts.count {
+                    ahead = Int(parts[haveIdx + 1]) ?? 0
+                }
+                if let andIdx = parts.lastIndex(of: "and"), andIdx + 1 < parts.count {
+                    behind = Int(parts[andIdx + 1]) ?? 0
+                }
             } else if trimmed.contains("ahead") {
                 // "Your branch is ahead of 'origin/main' by 2 commits."
                 let parts = trimmed.components(separatedBy: " ")
