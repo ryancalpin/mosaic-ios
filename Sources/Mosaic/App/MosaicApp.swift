@@ -22,6 +22,22 @@ struct MosaicApp: App {
                 .modelContainer(container)
                 .environment(AppSettings.shared)
                 .onAppear { NotificationManager.shared.requestPermission() }
+                .onContinueUserActivity("com.mosaic.session") { activity in
+                    guard
+                        let idString = activity.userInfo?["connectionID"] as? String,
+                        let uuid = UUID(uuidString: idString)
+                    else { return }
+
+                    let ctx = ModelContext(container)
+                    let descriptor = FetchDescriptor<Connection>(
+                        predicate: #Predicate { $0.id == uuid }
+                    )
+                    guard let connection = try? ctx.fetch(descriptor).first else { return }
+
+                    Task { @MainActor in
+                        _ = await SessionManager.shared.openSessionThrowing(for: connection)
+                    }
+                }
         }
     }
 

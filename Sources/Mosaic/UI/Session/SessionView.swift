@@ -97,5 +97,13 @@ struct SessionView: View {
             )
         }
         .background(Color.mosaicBg)
+        .userActivity("com.mosaic.session", isActive: true) { activity in
+            activity.title = "Terminal — \(connInfo.username)@\(connInfo.hostname)"
+            activity.addUserInfoEntries(from: [
+                "connectionID": session.connection.id.uuidString
+            ])
+            activity.isEligibleForHandoff = true
+            activity.isEligibleForSearch  = false
+        }
     }
 }
