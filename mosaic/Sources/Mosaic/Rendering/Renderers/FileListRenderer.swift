@@ -55,7 +55,7 @@ public final class FileListRenderer: OutputRenderer {
             let month       = String(parts[5])
             let day         = String(parts[6])
             let timeOrYear  = String(parts[7])
-            let name        = String(parts[8])
+            let name        = parts[8...].joined(separator: " ")
             let modified    = "\(month) \(day) \(timeOrYear)"
 
             let type: FileEntry.FileType

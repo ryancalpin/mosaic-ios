@@ -142,7 +142,7 @@ public final class Session: ObservableObject, Identifiable {
         pendingQueue[0].block.rawOutput = clean
             .components(separatedBy: "\n")
             .filter { line in
-                let t = line.trimmingCharacters(in: .whitespaces)
+                let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 return !allMarkers.contains(where: { t.hasPrefix($0) })
             }
             .joined(separator: "\n")
@@ -186,7 +186,7 @@ public final class Session: ObservableObject, Identifiable {
             .strippingANSI
             .components(separatedBy: "\n")
             .filter { line in
-                let t = line.trimmingCharacters(in: .whitespaces)
+                let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 return !allMarkers.contains(where: { t.hasPrefix($0) })
             }
             .joined(separator: "\n")
