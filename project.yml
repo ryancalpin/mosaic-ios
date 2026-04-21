@@ -87,3 +87,4 @@ targets:
         embed: true
       - framework: Frameworks/Protobuf_C_.xcframework
         embed: true
+      - sdk: AppIntents.framework
