@@ -46,10 +46,6 @@ public final class Session: ObservableObject, Identifiable {
         self.connection = connection
     }
 
-    deinit {
-        outputTask?.cancel()
-    }
-
     // MARK: - Lifecycle
 
     public func start() {
@@ -112,9 +108,8 @@ public final class Session: ObservableObject, Identifiable {
 
         pendingQueue[0].buffer += text
         // Re-strip from the full buffer so escape sequences split across Data chunks are handled correctly
-        pendingQueue[0].block.rawOutput = pendingQueue[0].buffer.strippingANSI
-
         let clean = pendingQueue[0].buffer.strippingANSI
+        pendingQueue[0].block.rawOutput = clean
         let cleanLines = clean.components(separatedBy: CharacterSet.newlines)
         let hasDone = cleanLines.contains { $0.trimmingCharacters(in: .whitespaces) == Self.doneMarker }
         if hasDone {
@@ -128,7 +123,7 @@ public final class Session: ObservableObject, Identifiable {
 
     private func extractSentinels(from text: String) {
         for line in text.components(separatedBy: "\n") {
-            let t = line.trimmingCharacters(in: .whitespaces)
+            let t = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if t.hasPrefix(Self.pwdMarker) {
                 let path = String(t.dropFirst(Self.pwdMarker.count))
                     .trimmingCharacters(in: .whitespaces)

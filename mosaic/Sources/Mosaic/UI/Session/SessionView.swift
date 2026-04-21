@@ -2,6 +2,7 @@ import SwiftUI
 
 // MARK: - SessionView
 
+@MainActor
 struct SessionView: View {
     @ObservedObject var session: Session
     @State private var approvalCommand: String? = nil

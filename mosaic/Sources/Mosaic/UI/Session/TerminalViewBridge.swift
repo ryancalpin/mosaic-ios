@@ -12,6 +12,7 @@ import SwiftTerm
 // The TerminalView is sized to match its parent via GeometryReader so the server
 // receives correct cols/rows. It is hidden via opacity/allowsHitTesting, not zero-sized.
 
+@MainActor
 struct TerminalViewBridge: UIViewRepresentable {
     @ObservedObject var session: Session
     let size: CGSize     // real pixel dimensions from GeometryReader in SessionView

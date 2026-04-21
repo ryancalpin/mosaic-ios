@@ -2,6 +2,7 @@ import SwiftUI
 
 // MARK: - OutputBlockView
 
+@MainActor
 struct OutputBlockView: View {
     @ObservedObject var block: OutputBlock
 
@@ -49,6 +50,7 @@ struct OutputBlockView: View {
 
 // MARK: - NativeOutputView
 
+@MainActor
 private struct NativeOutputView: View {
     let label: String
     let result: RendererResult

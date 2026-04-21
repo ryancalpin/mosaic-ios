@@ -5,6 +5,7 @@ import SwiftUI
 // Top-level layout: tab bar → breadcrumb → session content.
 // Manages the connection sheet and session switching.
 
+@MainActor
 struct RootView: View {
     @ObservedObject private var manager = SessionManager.shared
     @State private var showConnectionSheet = false
