@@ -46,10 +46,11 @@ public final class Connection {
 
     public var connectionInfo: ConnectionInfo {
         ConnectionInfo(
-            hostname: hostname,
-            port: port,
-            username: username,
-            transport: transportProtocol
+            hostname:     hostname,
+            port:         port,
+            username:     username,
+            transport:    transportProtocol,
+            credentialID: id
         )
     }
 }
