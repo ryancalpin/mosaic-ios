@@ -35,18 +35,28 @@ public final class RendererRegistry: ObservableObject {
         renderers.first { $0.id == id }
     }
 
+    // Matches: alias name='value'  OR  name='value'  (single or double quotes)
+    private static let aliasRegex = try? NSRegularExpression(
+        pattern: #"(?:alias\s+)?(\w+)=(?:'([^']*)'|"([^"]*)")"#
+    )
+
     /// Call this after connecting to a server — parse `alias` output to build the alias map.
     public func updateAliases(from aliasOutput: String) {
         aliasMap.removeAll()
+        let regex = Self.aliasRegex
         for line in aliasOutput.components(separatedBy: "\n") {
-            // Format: alias dps='docker ps'  OR  dps='docker ps'
-            let clean = line.replacingOccurrences(of: "^alias\\s+", with: "", options: .regularExpression)
-            let parts = clean.components(separatedBy: "=")
-            guard parts.count >= 2 else { continue }
-            let alias   = parts[0].trimmingCharacters(in: .whitespaces)
-            let command = parts[1...].joined(separator: "=")
-                .trimmingCharacters(in: CharacterSet(charactersIn: "'\""))
+            let ns = line as NSString
+            guard let match = regex?.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+                  match.numberOfRanges >= 3 else { continue }
+            guard let nameRange = Range(match.range(at: 1), in: line) else { continue }
+            let alias = String(line[nameRange])
+            // Group 2 = single-quoted value, group 3 = double-quoted value
+            let valueRange = (2...3).compactMap { Range(match.range(at: $0), in: line) }.first
+            guard let vr = valueRange else { continue }
+            let command = String(line[vr])
+            guard !alias.isEmpty, !command.isEmpty else { continue }
             aliasMap[alias] = command
+            _ = ns  // suppress unused warning
         }
     }
 

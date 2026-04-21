@@ -177,7 +177,8 @@ public final class SSHConnection: NSObject, TerminalConnection {
 
     @MainActor
     public func sendData(_ data: Data) async throws {
-        guard let str = String(data: data, encoding: .utf8) else { return }
+        guard let str = String(data: data, encoding: .utf8)
+                     ?? String(data: data, encoding: .isoLatin1) else { return }
         try await send(str)
     }
 

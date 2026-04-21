@@ -166,7 +166,7 @@ struct NewConnectionForm: View {
     @State private var useKeyAuth = false
 
     private var canSave: Bool {
-        !name.isEmpty && !hostname.isEmpty && !username.isEmpty
+        !name.isEmpty && !hostname.isEmpty && !username.isEmpty && Int(port) != nil
     }
 
     var body: some View {
