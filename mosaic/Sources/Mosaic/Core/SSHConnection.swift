@@ -127,10 +127,20 @@ public final class SSHConnection: NSObject, TerminalConnection {
         nmChannel = channel
         // Guard: disconnect() may have been called while we were suspended at .value above.
         guard state == .connecting else {
-            nmSession = nil   // prevent stale references after early return
+            nmSession = nil
             nmChannel = nil
-            channel.closeShell()
-            session.disconnect()
+            // Use libssh2Lock — disconnect() may be concurrently closing via its own detached task.
+            // Calling closeShell/disconnect directly here (on MainActor) without the lock would race
+            // with disconnect()'s detached task on the same non-thread-safe libssh2 session.
+            let lock = libssh2Lock
+            let ch   = channel
+            let sess = session
+            Task.detached(priority: .utility) {
+                lock.lock()
+                defer { lock.unlock() }
+                ch.closeShell()
+                sess.disconnect()
+            }
             return
         }
         // Assign delegate on MainActor — safe, and avoids the data race from setting it on the detached task thread
