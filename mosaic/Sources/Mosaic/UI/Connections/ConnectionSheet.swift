@@ -46,7 +46,7 @@ struct ConnectionSheet: View {
             .sheet(isPresented: $showNewForm) {
                 NewConnectionForm { newConn in
                     context.insert(newConn)
-                    try? context.save()
+                    do { try context.save() } catch { connectError = error.localizedDescription }
                 }
             }
             .alert("Connection Error", isPresented: Binding(
@@ -69,7 +69,7 @@ struct ConnectionSheet: View {
                 if showNewForm {
                     NewConnectionForm(inlineMode: true, onCancel: { showNewForm = false }) { newConn in
                         context.insert(newConn)
-                        try? context.save()
+                        do { try context.save() } catch { connectError = error.localizedDescription }
                         showNewForm = false
                     }
                     .padding(14)
