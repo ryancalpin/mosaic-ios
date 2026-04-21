@@ -25,7 +25,7 @@ struct OutputBlockView: View {
                 Spacer()
                 if showTimestamps && !block.isStreaming {
                     Text(block.timestamp, style: .time)
-                        .font(.custom("JetBrains Mono", size: 9))
+                        .font(.custom("JetBrains Mono", size: max(8, fontSize - 4)))
                         .foregroundColor(.mosaicTextSec)
                 }
                 if block.isStreaming {
