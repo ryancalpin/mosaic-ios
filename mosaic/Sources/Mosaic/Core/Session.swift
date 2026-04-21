@@ -57,7 +57,7 @@ public final class Session: ObservableObject, Identifiable {
         }
     }
 
-    public func stop() {
+    public func stop() async {
         outputTask?.cancel()
         outputTask = nil
         for entry in pendingQueue {
@@ -65,7 +65,7 @@ public final class Session: ObservableObject, Identifiable {
             entry.block.isStreaming = false
         }
         pendingQueue.removeAll()
-        Task { await connection.disconnect() }
+        await connection.disconnect()
     }
 
     // MARK: - Sending Commands

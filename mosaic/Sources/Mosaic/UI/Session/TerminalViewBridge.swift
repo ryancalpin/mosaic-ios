@@ -21,6 +21,7 @@ struct TerminalViewBridge: UIViewRepresentable {
         Coordinator()
     }
 
+    @MainActor
     func makeUIView(context: Context) -> TerminalView {
         let tv = TerminalView(frame: CGRect(origin: .zero, size: size))
         tv.terminalDelegate = context.coordinator
@@ -40,6 +41,7 @@ struct TerminalViewBridge: UIViewRepresentable {
         return tv
     }
 
+    @MainActor
     func updateUIView(_ uiView: TerminalView, context: Context) {
         context.coordinator.terminalView = uiView
         context.coordinator.session      = session

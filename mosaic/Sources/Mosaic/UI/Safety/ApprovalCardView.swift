@@ -25,7 +25,8 @@ struct ApprovalCardView: View {
         switch tier {
         case .tier1(let r): return r
         case .tier2(let r): return r
-        default: return ""
+        case .tier3(let r): return r
+        case .safe:         return ""
         }
     }
 
