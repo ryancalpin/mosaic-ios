@@ -6,6 +6,7 @@ import Foundation
 // Ephemeral per-session — held in Session.blocks array, not persisted.
 // Phase 2 will reintroduce persistence once session history UX is defined.
 
+@MainActor
 public final class OutputBlock: ObservableObject, Identifiable {
     public let id        = UUID()
     public let command:  String

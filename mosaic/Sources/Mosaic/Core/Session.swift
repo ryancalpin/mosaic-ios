@@ -69,17 +69,16 @@ public final class Session: ObservableObject, Identifiable {
         activeBlock = block
         outputBuffer = ""
 
-        // Append sentinels so we know when the command completes reliably.
-        // __MOSAIC_DONE__ is the definitive end-of-command signal.
-        let fullCmd = """
-            \(command)
-            echo "__MOSAIC_DONE__"
-            echo "__MOSAIC_PWD__$(pwd)"
-            git branch --show-current 2>/dev/null | sed 's/^/__MOSAIC_BRANCH__/'
-            """
+        // Append sentinels using explicit concatenation — not a multiline literal,
+        // which would strip leading whitespace from the user's command and could
+        // cause here-documents in the command to consume the sentinel lines.
+        let fullCmd = command + "\n"
+            + "echo \"__MOSAIC_DONE__\"\n"
+            + "echo \"__MOSAIC_PWD__$(pwd)\"\n"
+            + "git branch --show-current 2>/dev/null | sed 's/^/__MOSAIC_BRANCH__/'\n"
 
         do {
-            try await connection.send(fullCmd + "\n")
+            try await connection.send(fullCmd)
         } catch {
             block.rawOutput = "[send error: \(error.localizedDescription)]"
             block.isStreaming = false

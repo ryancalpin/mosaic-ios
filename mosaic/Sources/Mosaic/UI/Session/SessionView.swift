@@ -62,15 +62,15 @@ struct SessionView: View {
                             }
                         }
                         // Scroll on new block appended
-                        .onChange(of: session.blocks.count) { _ in
+                        .onChange(of: session.blocks.count) {
                             withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
                         }
                         // Scroll while output streams into the active block
-                        .onChange(of: session.blocks.last?.rawOutput) { _ in
+                        .onChange(of: session.blocks.last?.rawOutput) {
                             proxy.scrollTo("bottom", anchor: .bottom)
                         }
-                        .onChange(of: showApproval) { shown in
-                            if shown {
+                        .onChange(of: showApproval) {
+                            if showApproval {
                                 withAnimation { proxy.scrollTo("approval", anchor: .bottom) }
                             }
                         }

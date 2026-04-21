@@ -72,65 +72,51 @@ public final class SSHConnection: NSObject, TerminalConnection {
 
     // MARK: - TerminalConnection
 
+    @MainActor
     public func connect() async throws {
         state = .connecting
 
         let info = connectionInfo
-        let session = NMSSHSession(
-            toHost:       info.hostname,
-            port:         Int32(info.port),
-            withUsername: info.username
-        )
+        // NMSSH network I/O is blocking — run off the MainActor so we don't block the UI.
+        let (session, channel): (NMSSHSession, NMSSHChannel) = try await Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self else { throw ConnectionError.unknown("Deallocated") }
 
-        guard session.connect() else {
-            state = .error("Could not connect to \(info.hostname):\(info.port)")
-            throw ConnectionError.hostUnreachable
-        }
+            let s = NMSSHSession(toHost: info.hostname, port: Int32(info.port), withUsername: info.username)
+            guard s.connect() else { throw ConnectionError.hostUnreachable }
 
-        // Authenticate
-        let connID = id.uuidString
-        if let key = KeychainHelper.loadPrivateKey(connectionID: connID) {
-            let passphrase = KeychainHelper.loadPassword(connectionID: connID) ?? ""
-            session.authenticateBy(
-                inMemoryPublicKey: nil,
-                privateKey: key,
-                andPassword: passphrase.isEmpty ? nil : passphrase
-            )
-        } else if let password = KeychainHelper.loadPassword(connectionID: connID) {
-            session.authenticate(byPassword: password)
-        } else {
-            session.disconnect()
-            state = .error("No credentials found in Keychain")
-            throw ConnectionError.authenticationFailed
-        }
+            let connID = self.id.uuidString
+            if let key = KeychainHelper.loadPrivateKey(connectionID: connID) {
+                let pass = KeychainHelper.loadPassword(connectionID: connID) ?? ""
+                s.authenticateBy(inMemoryPublicKey: nil, privateKey: key, andPassword: pass.isEmpty ? nil : pass)
+            } else if let pw = KeychainHelper.loadPassword(connectionID: connID) {
+                s.authenticate(byPassword: pw)
+            } else {
+                s.disconnect()
+                throw ConnectionError.authenticationFailed
+            }
 
-        guard session.isAuthorized else {
-            session.disconnect()
-            state = .disconnected
-            throw ConnectionError.authenticationFailed
-        }
+            guard s.isAuthorized else { s.disconnect(); throw ConnectionError.authenticationFailed }
+            guard let ch = s.channel else { s.disconnect(); throw ConnectionError.unknown("Could not create channel") }
 
-        guard let channel = session.channel else {
-            session.disconnect()
-            throw ConnectionError.unknown("Could not create channel")
-        }
+            ch.requestPty = true
+            ch.ptyTerminalType = NMSSHChannelPtyTerminalXterm
+            var shellError: NSError?
+            guard ch.startShell(&shellError) else {
+                let msg = shellError?.localizedDescription ?? "Could not start shell"
+                s.disconnect()
+                throw ConnectionError.unknown(msg)
+            }
+            return (s, ch)
+        }.value
 
+        // Back on MainActor — safe to write @MainActor state
         channel.delegate = self
-        channel.requestPty = true
-        channel.ptyTerminalType = NMSSHChannelPtyTerminalXterm
-
-        var shellError: NSError?
-        guard channel.startShell(&shellError) else {
-            let msg = shellError?.localizedDescription ?? "Could not start shell"
-            session.disconnect()
-            throw ConnectionError.unknown(msg)
-        }
-
         nmSession = session
         nmChannel = channel
         state = .connected
     }
 
+    @MainActor
     public func disconnect() async {
         nmChannel?.closeShell()
         nmSession?.disconnect()

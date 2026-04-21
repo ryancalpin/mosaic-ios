@@ -96,5 +96,6 @@ struct SmartInputBar: View {
         case .tier1, .tier2:
             onNeedsApproval(cmd, tier)
         }
+        isFocused = true
     }
 }

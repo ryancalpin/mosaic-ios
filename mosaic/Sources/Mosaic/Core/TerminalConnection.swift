@@ -9,7 +9,7 @@ import Foundation
 public protocol TerminalConnection: AnyObject {
     var id: UUID { get }
     var connectionInfo: ConnectionInfo { get }
-    var state: ConnectionState { get }
+    @MainActor var state: ConnectionState { get }
     var stateStream: AsyncStream<ConnectionState> { get }
     var outputStream: AsyncStream<Data> { get }
 
