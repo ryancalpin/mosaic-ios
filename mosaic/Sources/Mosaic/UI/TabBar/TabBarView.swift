@@ -137,7 +137,8 @@ struct StatusDot: View {
                 pulsing = true
             }
         } else {
-            withAnimation(.default) { pulsing = false }
+            // Use an explicit easing (not .default spring) to reliably cancel the repeatForever
+            withAnimation(.easeInOut(duration: 0.2)) { pulsing = false }
         }
     }
 }

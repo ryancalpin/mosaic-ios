@@ -48,12 +48,13 @@ public final class GitStatusRenderer: OutputRenderer {
                 inUntrackedSection = true
             } else if trimmed.contains("diverged") {
                 // "Your branch and 'origin/main' have diverged, and have 3 and 1 different commits each"
-                let parts = trimmed.components(separatedBy: " ")
-                if let haveIdx = parts.firstIndex(of: "have"), haveIdx + 1 < parts.count {
-                    ahead = Int(parts[haveIdx + 1]) ?? 0
-                }
-                if let andIdx = parts.lastIndex(of: "and"), andIdx + 1 < parts.count {
-                    behind = Int(parts[andIdx + 1]) ?? 0
+                // Extract the two counts via regex to avoid fragile word-index arithmetic.
+                if let range = trimmed.range(of: #"have (\d+) and (\d+) different"#, options: .regularExpression) {
+                    let nums = String(trimmed[range])
+                        .components(separatedBy: CharacterSet.decimalDigits.inverted)
+                        .filter { !$0.isEmpty }
+                    ahead  = Int(nums.first ?? "") ?? 0
+                    behind = Int(nums.dropFirst().first ?? "") ?? 0
                 }
             } else if trimmed.contains("ahead") {
                 // "Your branch is ahead of 'origin/main' by 2 commits."

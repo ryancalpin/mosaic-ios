@@ -72,8 +72,8 @@ public final class Session: ObservableObject, Identifiable {
     public func stop() async {
         headTimeoutTask?.cancel()
         headTimeoutTask = nil
-        await connection.disconnect()  // finishes outputStream so the for-await loop drains before we clear the queue
-        outputTask?.cancel()
+        await connection.disconnect()  // finishes outputStream continuation
+        await outputTask?.value        // wait for the for-await loop to fully drain buffered items
         outputTask = nil
         for entry in pendingQueue {
             entry.block.rawOutput += "\n[session closed]"
@@ -200,8 +200,9 @@ public final class Session: ObservableObject, Identifiable {
 
         // Sentinel detection: scan only the recent tail of clean output so this
         // check doesn't also degrade to O(total_buffer_size) on every packet.
+        // 2048 units covers all four sentinel lines plus generous post-sentinel output.
         let cleanNS = clean as NSString
-        let sentinelTail = cleanNS.substring(from: max(0, cleanNS.length - 500))
+        let sentinelTail = cleanNS.substring(from: max(0, cleanNS.length - 2048))
         let hasDone = sentinelTail.components(separatedBy: CharacterSet.newlines)
             .contains { $0.trimmingCharacters(in: .whitespacesAndNewlines) == Self.doneMarker }
         if hasDone {
