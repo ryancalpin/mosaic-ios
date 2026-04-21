@@ -94,6 +94,7 @@ struct SmartInputBar: View {
             text = ""
             onSend(cmd)
         case .tier1, .tier2:
+            text = ""
             onNeedsApproval(cmd, tier)
         }
         isFocused = true

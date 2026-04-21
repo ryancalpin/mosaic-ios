@@ -97,6 +97,7 @@ public final class Session: ObservableObject, Identifiable {
 
     // MARK: - Output Handling
 
+    @MainActor
     private func handleOutput(_ data: Data) async {
         terminalCoordinator?.feed(data: data)
 
