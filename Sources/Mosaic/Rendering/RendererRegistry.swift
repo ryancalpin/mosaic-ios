@@ -94,18 +94,18 @@ public final class RendererRegistry: ObservableObject {
     }
 
     private func registerBuiltins() {
+        // Phase 1
         register(DockerPsRenderer())
         register(GitStatusRenderer())
         register(FileListRenderer())
-        // Phase 2 renderers registered here as they're built:
-        // register(PingRenderer())
-        // register(DiskUsageRenderer())
-        // register(HttpResponseRenderer())
-        // register(NpmInstallRenderer())
-        // register(JsonTreeRenderer())
-        // register(CronRenderer())
-        // register(ProcessTableRenderer())
-        // register(GitDiffRenderer())
-        // register(GitLogRenderer())
+        // Phase 2
+        register(PingRenderer())
+        register(DiskUsageRenderer())
+        register(HttpResponseRenderer())
+        register(ProcessTableRenderer())
+        register(NpmInstallRenderer())
+        register(JsonTreeRenderer())
+        register(GitDiffRenderer())
+        register(CronRenderer())
     }
 }
