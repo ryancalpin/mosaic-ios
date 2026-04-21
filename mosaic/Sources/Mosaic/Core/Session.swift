@@ -115,6 +115,7 @@ public final class Session: ObservableObject, Identifiable {
             if let idx = pendingQueue.firstIndex(where: { $0.block === block }) {
                 pendingQueue.remove(at: idx)
             }
+            armHeadTimeout()
         }
     }
 

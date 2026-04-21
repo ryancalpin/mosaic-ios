@@ -70,14 +70,16 @@ public final class SessionManager: ObservableObject {
 
     public func closeSession(_ session: Session) {
         // Remove from UI immediately; disconnect runs async so the tab closes instantly
-        if let ssh = session.connection as? SSHConnection {
-            KeychainHelper.deleteCredentials(connectionID: ssh.id.uuidString)
-        }
         sessions.removeAll { $0.id == session.id }
         if activeSessionID == session.id {
             activeSessionID = sessions.last?.id
         }
-        Task { await session.stop() }
+        Task {
+            await session.stop()
+            if let ssh = session.connection as? SSHConnection {
+                KeychainHelper.deleteCredentials(connectionID: ssh.id.uuidString)
+            }
+        }
     }
 
     public func activate(_ session: Session) {

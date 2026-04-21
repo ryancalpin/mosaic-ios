@@ -5,6 +5,7 @@ import SwiftUI
 // Bottom input bar for the session view.
 // Phase 1: basic command input + send button + UI-only CodeCorrect pill + mic placeholder.
 
+@MainActor
 struct SmartInputBar: View {
     @Binding var text: String
     let onSend: (String) -> Void

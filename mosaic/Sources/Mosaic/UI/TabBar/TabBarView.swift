@@ -6,6 +6,7 @@ import SwiftUI
 // Each tab: status dot + server name + protocol badge.
 // Active tab has accent underline. "+" opens connection sheet.
 
+@MainActor
 struct TabBarView: View {
     @ObservedObject var manager: SessionManager
     let onAddTab: () -> Void
