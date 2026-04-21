@@ -17,6 +17,7 @@ struct ApprovalCardView: View {
     @State private var holdProgress: CGFloat = 0.0
     @State private var holdTimer: Timer? = nil
     @State private var isHolding = false
+    @State private var hasConfirmed = false
     @State private var tier3Progress: CGFloat = 0.0
     @State private var tier3Timer: Timer? = nil
     @State private var isCancelled = false
@@ -177,7 +178,8 @@ struct ApprovalCardView: View {
             MainActor.assumeIsolated {
                 let elapsed = Date().timeIntervalSince(start)
                 holdProgress = min(CGFloat(elapsed / 2.0), 1.0)
-                if holdProgress >= 1.0 {
+                if holdProgress >= 1.0 && !hasConfirmed {
+                    hasConfirmed = true
                     let confirm = onConfirm
                     cancelHolding()
                     confirm()
