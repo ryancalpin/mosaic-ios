@@ -8,7 +8,7 @@ struct MosaicApp: App {
     init() {
         do {
             let config = ModelConfiguration(cloudKitDatabase: .none)
-            container = try ModelContainer(for: Connection.self, configurations: config)
+            container = try ModelContainer(for: Connection.self, CommandHistory.self, configurations: config)
             injectTestSSHKeyIfNeeded(container: container)
         } catch {
             fatalError("Failed to create model container: \(error)")

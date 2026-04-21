@@ -34,7 +34,7 @@ struct SessionView: View {
 
                     ScrollViewReader { proxy in
                         ScrollView {
-                            LazyVStack(alignment: .leading, spacing: 0) {
+                            VStack(alignment: .leading, spacing: 0) {
                                 ForEach(session.blocks) { block in
                                     OutputBlockView(block: block)
                                         .id(block.id)
@@ -84,6 +84,7 @@ struct SessionView: View {
 
             SmartInputBar(
                 text: $session.pendingCommand,
+                hostname: connInfo.hostname,
                 onSend: { cmd in
                     session.pendingCommand = ""
                     Task { await session.send(cmd) }
