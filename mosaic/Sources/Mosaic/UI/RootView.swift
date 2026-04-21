@@ -6,7 +6,7 @@ import SwiftUI
 // Manages the connection sheet and session switching.
 
 struct RootView: View {
-    @StateObject private var manager = SessionManager.shared
+    @ObservedObject private var manager = SessionManager.shared
     @State private var showConnectionSheet = false
     @State private var connectionError: String? = nil
 

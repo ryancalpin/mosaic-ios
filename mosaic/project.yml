@@ -23,7 +23,7 @@ targets:
       - Sources/Mosaic
     resources:
       - path: Resources
-        optional: false
+        optional: true
     info:
       path: Sources/Mosaic/App/Info.plist
       properties:

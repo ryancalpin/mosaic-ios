@@ -67,9 +67,7 @@ struct ConnectionSheet: View {
         ScrollView {
             LazyVStack(spacing: 8) {
                 if showNewForm {
-                    // inlineMode: true prevents NewConnectionForm from calling its own
-                    // dismiss() which would close the parent ConnectionSheet
-                    NewConnectionForm(inlineMode: true) { newConn in
+                    NewConnectionForm(inlineMode: true, onCancel: { showNewForm = false }) { newConn in
                         context.insert(newConn)
                         try? context.save()
                         showNewForm = false
@@ -153,6 +151,7 @@ struct ConnectionCard: View {
 
 struct NewConnectionForm: View {
     var inlineMode: Bool = false   // true when embedded directly (not in its own sheet)
+    var onCancel: (() -> Void)? = nil   // inline mode only: called when user taps Cancel
     let onSave: (Connection) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -171,73 +170,95 @@ struct NewConnectionForm: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.mosaicBg.ignoresSafeArea()
-
-                ScrollView {
-                    VStack(spacing: 16) {
-                        group("Server") {
-                            field("Name",     text: $name,     placeholder: "prod-01")
-                            field("Hostname", text: $hostname, placeholder: "192.168.1.1")
-                            field("Port",     text: $port,     placeholder: "22")
-                                .keyboardType(.numberPad)
-                            field("Username", text: $username, placeholder: "ryan")
+        if inlineMode {
+            formContent
+        } else {
+            NavigationStack {
+                formContent
+                    .navigationTitle("New Server")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Cancel") { dismiss() }
+                                .foregroundColor(.mosaicTextSec)
                         }
-
-                        group("Protocol") {
-                            Picker("Transport", selection: $transport) {
-                                ForEach(TransportProtocol.allCases, id: \.self) { t in
-                                    Text(t.rawValue).tag(t)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                        }
-
-                        group("Authentication") {
-                            Toggle("Use SSH key", isOn: $useKeyAuth)
-                                .tint(.mosaicAccent)
-                                .font(.custom("JetBrains Mono", size: 12))
-                                .foregroundColor(.mosaicTextPri)
-
-                            if useKeyAuth {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("PRIVATE KEY")
-                                        .font(.custom("JetBrains Mono", size: 8).weight(.bold))
-                                        .foregroundColor(.mosaicTextSec)
-                                    TextEditor(text: $privateKey)
-                                        .font(.custom("JetBrains Mono", size: 10))
-                                        .foregroundColor(.mosaicTextPri)
-                                        .frame(height: 100)
-                                        .background(Color.mosaicSurface2)
-                                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                                }
-                                field("Passphrase (optional)", text: $password, placeholder: "")
-                                    .textContentType(.password)
-                            } else {
-                                secureField("Password", text: $password)
-                            }
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Save") { save() }
+                                .font(.custom("JetBrains Mono", size: 12).weight(.bold))
+                                .foregroundColor(canSave ? .mosaicAccent : .mosaicTextMut)
+                                .disabled(!canSave)
                         }
                     }
-                    .padding(16)
-                }
             }
-            .navigationTitle("New Server")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(.mosaicTextSec)
+            .preferredColorScheme(.dark)
+        }
+    }
+
+    private var formContent: some View {
+        ZStack {
+            Color.mosaicBg.ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    group("Server") {
+                        field("Name",     text: $name,     placeholder: "prod-01")
+                        field("Hostname", text: $hostname, placeholder: "192.168.1.1")
+                        field("Port",     text: $port,     placeholder: "22")
+                            .keyboardType(.numberPad)
+                        field("Username", text: $username, placeholder: "ryan")
+                    }
+
+                    group("Protocol") {
+                        Picker("Transport", selection: $transport) {
+                            ForEach(TransportProtocol.allCases, id: \.self) { t in
+                                Text(t.rawValue).tag(t)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+
+                    group("Authentication") {
+                        Toggle("Use SSH key", isOn: $useKeyAuth)
+                            .tint(.mosaicAccent)
+                            .font(.custom("JetBrains Mono", size: 12))
+                            .foregroundColor(.mosaicTextPri)
+
+                        if useKeyAuth {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("PRIVATE KEY")
+                                    .font(.custom("JetBrains Mono", size: 8).weight(.bold))
+                                    .foregroundColor(.mosaicTextSec)
+                                TextEditor(text: $privateKey)
+                                    .font(.custom("JetBrains Mono", size: 10))
+                                    .foregroundColor(.mosaicTextPri)
+                                    .frame(height: 100)
+                                    .background(Color.mosaicSurface2)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                            field("Passphrase (optional)", text: $password, placeholder: "")
+                                .textContentType(.password)
+                        } else {
+                            secureField("Password", text: $password)
+                        }
+                    }
+
+                    if inlineMode {
+                        HStack(spacing: 10) {
+                            Button("Cancel") { onCancel?() }
+                                .buttonStyle(MosaicSecondaryButtonStyle())
+                            Button("Save") { save() }
+                                .font(.custom("JetBrains Mono", size: 10).weight(.bold))
+                                .foregroundColor(canSave ? .black : .mosaicTextMut)
+                                .frame(maxWidth: .infinity, minHeight: 38)
+                                .background(canSave ? Color.mosaicAccent : Color.mosaicSurface2)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .disabled(!canSave)
+                        }
+                    }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") { save() }
-                        .font(.custom("JetBrains Mono", size: 12).weight(.bold))
-                        .foregroundColor(canSave ? .mosaicAccent : .mosaicTextMut)
-                        .disabled(!canSave)
-                }
+                .padding(16)
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
