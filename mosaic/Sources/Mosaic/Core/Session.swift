@@ -136,7 +136,15 @@ public final class Session: ObservableObject, Identifiable {
         pendingQueue[0].buffer += text
         // Re-strip from the full buffer so escape sequences split across Data chunks are handled correctly
         let clean = pendingQueue[0].buffer.strippingANSI
+        // Filter sentinel lines from the live display so users never see scaffold text while streaming
+        let allMarkers = [Self.doneMarker, Self.pwdMarker, Self.branchMarker, Self.aheadMarker]
         pendingQueue[0].block.rawOutput = clean
+            .components(separatedBy: "\n")
+            .filter { line in
+                let t = line.trimmingCharacters(in: .whitespaces)
+                return !allMarkers.contains(where: { t.hasPrefix($0) })
+            }
+            .joined(separator: "\n")
         let cleanLines = clean.components(separatedBy: CharacterSet.newlines)
         let hasDone = cleanLines.contains { $0.trimmingCharacters(in: .whitespaces) == Self.doneMarker }
         if hasDone {

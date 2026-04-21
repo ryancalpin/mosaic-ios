@@ -6,6 +6,7 @@ import SwiftUI
 // Tier 1: requires 2-second hold-to-confirm.
 // Tier 2: requires single tap to confirm.
 
+@MainActor
 struct ApprovalCardView: View {
     let command: String
     let tier: SafetyTier
