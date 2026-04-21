@@ -37,6 +37,9 @@ public final class Session: ObservableObject, Identifiable {
     }
     private var pendingQueue: [PendingEntry] = []
     private var outputTask: Task<Void, Never>? = nil
+    // Cancels the head entry after 60 s — prevents permanent deadlock when the user runs
+    // interactive sub-processes (ssh, python, node) that consume sentinel lines internally.
+    private var headTimeoutTask: Task<Void, Never>? = nil
 
     private static let doneMarker   = "__MOSAIC_DONE__"
     private static let pwdMarker    = "__MOSAIC_PWD__"
@@ -58,6 +61,8 @@ public final class Session: ObservableObject, Identifiable {
     }
 
     public func stop() async {
+        headTimeoutTask?.cancel()
+        headTimeoutTask = nil
         outputTask?.cancel()
         outputTask = nil
         for entry in pendingQueue {
@@ -68,13 +73,31 @@ public final class Session: ObservableObject, Identifiable {
         await connection.disconnect()
     }
 
+    // MARK: - Head Timeout
+
+    private func armHeadTimeout() {
+        headTimeoutTask?.cancel()
+        guard !pendingQueue.isEmpty else { headTimeoutTask = nil; return }
+        let block = pendingQueue[0].block
+        headTimeoutTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(60))
+            guard let self, !Task.isCancelled,
+                  let idx = self.pendingQueue.firstIndex(where: { $0.block === block }) else { return }
+            let entry = self.pendingQueue.remove(at: idx)
+            self.finalizeBlock(entry.block)
+            self.armHeadTimeout()
+        }
+    }
+
     // MARK: - Sending Commands
 
     public func send(_ command: String) async {
         let block = OutputBlock(command: command)
         block.isStreaming = true
         blocks.append(block)
+        let wasEmpty = pendingQueue.isEmpty
         pendingQueue.append(PendingEntry(block: block))
+        if wasEmpty { armHeadTimeout() }
 
         // Append sentinels using explicit concatenation — not a multiline literal,
         // which would strip leading whitespace from the user's command and could
@@ -117,6 +140,7 @@ public final class Session: ObservableObject, Identifiable {
             let entry = pendingQueue.removeFirst()
             extractSentinels(from: clean)
             finalizeBlock(entry.block)
+            armHeadTimeout()
         }
     }
 

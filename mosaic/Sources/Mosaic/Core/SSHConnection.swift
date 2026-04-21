@@ -182,7 +182,7 @@ extension SSHConnection: NMSSHChannelDelegate {
     public func channelShellDidClose(_ channel: NMSSHChannel) {
         // Update state first so didSet's yieldState fires while the continuation is still live,
         // then clear and finish the continuations.
-        DispatchQueue.main.async { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self else { return }
             self.state = .disconnected   // didSet → yieldState → yields to live continuation
 
