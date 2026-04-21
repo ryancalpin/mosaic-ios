@@ -36,19 +36,24 @@ public final class DockerPsRenderer: OutputRenderer {
         }
 
         // Parse column offsets from header
-        guard let idRange     = headerLine.range(of: "CONTAINER ID"),
-              let imageRange  = headerLine.range(of: "IMAGE"),
-              let statusRange = headerLine.range(of: "STATUS"),
-              let portsRange  = headerLine.range(of: "PORTS"),
-              let namesRange  = headerLine.range(of: "NAMES") else {
+        guard let idRange      = headerLine.range(of: "CONTAINER ID"),
+              let imageRange   = headerLine.range(of: "IMAGE"),
+              let commandRange = headerLine.range(of: "COMMAND"),
+              let createdRange = headerLine.range(of: "CREATED"),
+              let statusRange  = headerLine.range(of: "STATUS"),
+              let portsRange   = headerLine.range(of: "PORTS"),
+              let namesRange   = headerLine.range(of: "NAMES") else {
             return nil
         }
 
-        let idOffset     = headerLine.distance(from: headerLine.startIndex, to: idRange.lowerBound)
-        let imageOffset  = headerLine.distance(from: headerLine.startIndex, to: imageRange.lowerBound)
-        let statusOffset = headerLine.distance(from: headerLine.startIndex, to: statusRange.lowerBound)
-        let portsOffset  = headerLine.distance(from: headerLine.startIndex, to: portsRange.lowerBound)
-        let namesOffset  = headerLine.distance(from: headerLine.startIndex, to: namesRange.lowerBound)
+        let idOffset      = headerLine.distance(from: headerLine.startIndex, to: idRange.lowerBound)
+        let imageOffset   = headerLine.distance(from: headerLine.startIndex, to: imageRange.lowerBound)
+        let commandOffset = headerLine.distance(from: headerLine.startIndex, to: commandRange.lowerBound)
+        let createdOffset = headerLine.distance(from: headerLine.startIndex, to: createdRange.lowerBound)
+        let statusOffset  = headerLine.distance(from: headerLine.startIndex, to: statusRange.lowerBound)
+        let portsOffset   = headerLine.distance(from: headerLine.startIndex, to: portsRange.lowerBound)
+        let namesOffset   = headerLine.distance(from: headerLine.startIndex, to: namesRange.lowerBound)
+        _ = createdOffset  // used implicitly via statusOffset boundary
 
         guard let headerIndex = lines.firstIndex(where: { $0.contains("CONTAINER ID") }) else {
             return nil
@@ -66,7 +71,7 @@ public final class DockerPsRenderer: OutputRenderer {
             }
 
             let containerID = col(from: idOffset, to: imageOffset)
-            let image       = col(from: imageOffset, to: statusOffset)
+            let image       = col(from: imageOffset, to: commandOffset)
             let status      = col(from: statusOffset, to: portsOffset)
             let ports       = col(from: portsOffset, to: namesOffset)
             let name        = col(from: namesOffset, to: line.count)
