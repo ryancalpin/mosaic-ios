@@ -52,6 +52,7 @@ private let tabBarHeight: CGFloat = 42
 
 // MARK: - TabItemView
 
+@MainActor
 struct TabItemView: View {
     @ObservedObject var session: Session
     let isActive: Bool

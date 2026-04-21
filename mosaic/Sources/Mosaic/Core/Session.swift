@@ -6,7 +6,9 @@ import Foundation
 //
 // Command boundary detection uses a sentinel strategy:
 // Every command is wrapped as: <cmd>; echo "__MOSAIC_DONE__"; echo "__MOSAIC_PWD__$(pwd)"; ...
-// When __MOSAIC_DONE__ appears in output we know the command finished — no prompt regex needed.
+// When __MOSAIC_DONE__ appears on its own line we know the command finished — no prompt regex needed.
+//
+// Commands are tracked in a FIFO queue so rapid submissions don't mix output across blocks.
 //
 // Data flow:
 //   SSH bytes → SwiftTerm (ground truth VT100 processor)
@@ -27,8 +29,13 @@ public final class Session: ObservableObject, Identifiable {
     // it survives tab switches when SwiftUI may tear down the view.
     public var terminalCoordinator: TerminalFeeder? = nil
 
-    private var outputBuffer: String = ""
-    private var activeBlock: OutputBlock? = nil
+    // Per-command pending entry: each send() pushes one; handleOutput pops when sentinel found.
+    // Using a queue prevents rapid commands from cross-contaminating output blocks.
+    private struct PendingEntry {
+        let block: OutputBlock
+        var buffer: String = ""
+    }
+    private var pendingQueue: [PendingEntry] = []
     private var outputTask: Task<Void, Never>? = nil
 
     private static let doneMarker   = "__MOSAIC_DONE__"
@@ -66,8 +73,7 @@ public final class Session: ObservableObject, Identifiable {
         let block = OutputBlock(command: command)
         block.isStreaming = true
         blocks.append(block)
-        activeBlock = block
-        outputBuffer = ""
+        pendingQueue.append(PendingEntry(block: block))
 
         // Append sentinels using explicit concatenation — not a multiline literal,
         // which would strip leading whitespace from the user's command and could
@@ -82,7 +88,9 @@ public final class Session: ObservableObject, Identifiable {
         } catch {
             block.rawOutput = "[send error: \(error.localizedDescription)]"
             block.isStreaming = false
-            activeBlock = nil
+            if let idx = pendingQueue.firstIndex(where: { $0.block === block }) {
+                pendingQueue.remove(at: idx)
+            }
         }
     }
 
@@ -95,15 +103,18 @@ public final class Session: ObservableObject, Identifiable {
                       ?? String(data: data, encoding: .isoLatin1)
         else { return }
 
-        outputBuffer += text
-        activeBlock?.rawOutput += text.strippingANSI
+        guard !pendingQueue.isEmpty else { return }
 
-        let clean = outputBuffer.strippingANSI
+        pendingQueue[0].buffer += text
+        pendingQueue[0].block.rawOutput += text.strippingANSI
+
+        let clean = pendingQueue[0].buffer.strippingANSI
         let cleanLines = clean.components(separatedBy: CharacterSet.newlines)
         let hasDone = cleanLines.contains { $0.trimmingCharacters(in: .whitespaces) == Self.doneMarker }
-        if hasDone, let block = activeBlock {
+        if hasDone {
+            let entry = pendingQueue.removeFirst()
             extractSentinels(from: clean)
-            finalizeBlock(block)
+            finalizeBlock(entry.block)
         }
     }
 
@@ -149,8 +160,6 @@ public final class Session: ObservableObject, Identifiable {
         }
 
         block.isStreaming = false
-        activeBlock = nil
-        outputBuffer = ""
     }
 }
 

@@ -12,7 +12,9 @@ public final class GitStatusRenderer: OutputRenderer {
     public func canRender(command: String, output: String) -> Bool {
         let cmd = command.lowercased()
         let triggersOnCommand = cmd.hasPrefix("git status")
-        let triggersOnOutput  = output.contains("On branch") || output.contains("HEAD detached")
+        let triggersOnOutput  = (output.contains("On branch") || output.contains("HEAD detached"))
+            && (output.contains("Changes") || output.contains("nothing to commit")
+                || output.contains("Untracked files"))
         return triggersOnCommand || triggersOnOutput
     }
 

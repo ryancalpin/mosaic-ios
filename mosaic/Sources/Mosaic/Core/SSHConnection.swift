@@ -77,18 +77,21 @@ public final class SSHConnection: NSObject, TerminalConnection {
         state = .connecting
 
         let info = connectionInfo
-        // NMSSH network I/O is blocking — run off the MainActor so we don't block the UI.
-        let (session, channel): (NMSSHSession, NMSSHChannel) = try await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else { throw ConnectionError.unknown("Deallocated") }
+        // Load credentials on MainActor before entering the detached task to avoid
+        // calling KeychainHelper from a non-isolated context.
+        let connID   = id.uuidString
+        let privateKey = KeychainHelper.loadPrivateKey(connectionID: connID)
+        let password   = KeychainHelper.loadPassword(connectionID: connID)
 
+        // NMSSH network I/O is blocking — run off the MainActor so we don't block the UI.
+        let (session, channel): (NMSSHSession, NMSSHChannel) = try await Task.detached(priority: .userInitiated) {
             let s = NMSSHSession(toHost: info.hostname, port: Int32(info.port), withUsername: info.username)
             guard s.connect() else { throw ConnectionError.hostUnreachable }
 
-            let connID = self.id.uuidString
-            if let key = KeychainHelper.loadPrivateKey(connectionID: connID) {
-                let pass = KeychainHelper.loadPassword(connectionID: connID) ?? ""
+            if let key = privateKey {
+                let pass = password ?? ""
                 s.authenticateBy(inMemoryPublicKey: nil, privateKey: key, andPassword: pass.isEmpty ? nil : pass)
-            } else if let pw = KeychainHelper.loadPassword(connectionID: connID) {
+            } else if let pw = password {
                 s.authenticate(byPassword: pw)
             } else {
                 s.disconnect()
