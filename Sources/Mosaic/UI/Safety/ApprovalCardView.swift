@@ -19,8 +19,9 @@ struct ApprovalCardView: View {
     @State private var isHolding = false
     @State private var hasConfirmed = false
     @State private var tier3Progress: CGFloat = 0.0
-    @State private var tier3Timer: Timer? = nil
+    @State private var tier3Task: Task<Void, Never>? = nil
     @State private var isCancelled = false
+    @State private var pendingAutoConfirm = false
 
     private var isTier1: Bool {
         if case .tier1 = tier { return true }
@@ -89,6 +90,7 @@ struct ApprovalCardView: View {
             // Buttons
             HStack(spacing: 10) {
                 Button("Cancel") {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     isCancelled = true
                     onCancel()
                 }
@@ -126,6 +128,7 @@ struct ApprovalCardView: View {
                 } else {
                     Button("Confirm") {
                         guard !hasConfirmed else { return }
+                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
                         hasConfirmed = true
                         onConfirm()
                     }
@@ -140,10 +143,17 @@ struct ApprovalCardView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(isTier1 ? Color.mosaicRed.opacity(0.3) : Color.mosaicWarn.opacity(0.3), lineWidth: 1)
         )
+        .onChange(of: pendingAutoConfirm) {
+            guard pendingAutoConfirm && !isCancelled && !hasConfirmed else { return }
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            hasConfirmed = true
+            onConfirm()
+        }
         .onDisappear {
             cancelHolding()
-            tier3Timer?.invalidate()
-            tier3Timer = nil
+            isCancelled = true
+            tier3Task?.cancel()
+            tier3Task = nil
         }
         .onAppear {
             if isTier3 { startTier3AutoConfirm() }
@@ -153,24 +163,19 @@ struct ApprovalCardView: View {
     // MARK: - Tier 3 Auto-Confirm
 
     private func startTier3AutoConfirm() {
-        guard tier3Timer == nil else { return }
-        let start = Date()
-        let t = Timer(timeInterval: 0.05, repeats: true) { _ in
-            MainActor.assumeIsolated {
+        guard tier3Task == nil else { return }
+        tier3Task = Task { @MainActor in
+            let start = Date()
+            while !isCancelled && !hasConfirmed {
                 let elapsed = Date().timeIntervalSince(start)
                 tier3Progress = min(CGFloat(elapsed / 1.5), 1.0)
-                if tier3Progress >= 1.0 {
-                    tier3Timer?.invalidate()
-                    tier3Timer = nil
-                    if !isCancelled && !hasConfirmed {
-                        hasConfirmed = true
-                        onConfirm()
-                    }
-                }
+                if elapsed >= 1.5 { break }
+                try? await Task.sleep(nanoseconds: 50_000_000)
+            }
+            if !isCancelled && !hasConfirmed {
+                pendingAutoConfirm = true
             }
         }
-        RunLoop.main.add(t, forMode: .common)
-        tier3Timer = t
     }
 
     // MARK: - Hold Timer
@@ -179,12 +184,13 @@ struct ApprovalCardView: View {
         guard holdTimer == nil else { return }
         isHolding = true
         let start = Date()
-        let t = Timer(timeInterval: 0.05, repeats: true) { _ in
-            MainActor.assumeIsolated {
+        let t = Timer(timeInterval: 0.05, repeats: true) { [self] _ in
+            DispatchQueue.main.async {
                 let elapsed = Date().timeIntervalSince(start)
                 holdProgress = min(CGFloat(elapsed / 2.0), 1.0)
                 if holdProgress >= 1.0 && !hasConfirmed {
                     hasConfirmed = true
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
                     let confirm = onConfirm
                     cancelHolding()
                     confirm()

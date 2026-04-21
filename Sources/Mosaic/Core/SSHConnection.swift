@@ -1,22 +1,23 @@
 import Foundation
-import NMSSH
+import Citadel
+import NIOCore
+import Crypto
 
 // MARK: - SSHConnection
 //
-// TerminalConnection implementation backed by NMSSH (libssh2).
+// TerminalConnection implementation backed by Citadel (swift-nio-ssh).
 // Credentials are loaded from Keychain — never stored in this object.
 //
-// Thread safety: NMSSH delegate callbacks fire on libssh2's internal thread.
-// All continuation access is protected by continuationLock.
+// Design: `connect()` starts an async task that runs `client.withTTY()`
+// for the lifetime of the session.  A CheckedContinuation bridges the
+// closure-based TTY API back to connect()'s async return, resuming once
+// the TTY channel is established and handing back a `TTYStdinWriter`.
 
-public final class SSHConnection: NSObject, TerminalConnection {
+@MainActor
+public final class SSHConnection: TerminalConnection {
     public let id            = UUID()
     public let connectionInfo: ConnectionInfo
 
-    // MARK: - State
-
-    // Always written on MainActor; read from MainActor (TabBarView).
-    // Delegate callbacks dispatch to main before mutating.
     @MainActor private(set) public var state: ConnectionState = .disconnected {
         didSet { yieldState(state) }
     }
@@ -25,23 +26,11 @@ public final class SSHConnection: NSObject, TerminalConnection {
     private var _stateContinuation:  AsyncStream<ConnectionState>.Continuation?
     private var _outputContinuation: AsyncStream<Data>.Continuation?
 
-    // Serializes all libssh2 I/O (send/closeShell/disconnect) since libssh2 is not thread-safe.
-    // Required when send() and disconnect() can race in concurrent detached tasks.
-    private let libssh2Lock = NSLock()
+    private var sshClient:   SSHClient?
+    private var ttyWriter:   TTYStdinWriter?
+    private var sessionTask: Task<Void, Never>?
 
-    private func yieldState(_ s: ConnectionState) {
-        continuationLock.lock()
-        let c = _stateContinuation
-        continuationLock.unlock()
-        c?.yield(s)
-    }
-
-    private func yieldOutput(_ data: Data) {
-        continuationLock.lock()
-        let c = _outputContinuation
-        continuationLock.unlock()
-        c?.yield(data)
-    }
+    // MARK: - Streams
 
     public lazy var stateStream: AsyncStream<ConnectionState> = {
         AsyncStream { continuation in
@@ -59,19 +48,39 @@ public final class SSHConnection: NSObject, TerminalConnection {
         }
     }()
 
-    // MARK: - NMSSH internals
-
-    private var nmSession: NMSSHSession?
-    private var nmChannel: NMSSHChannel?
-
     // MARK: - Init
 
     public init(connectionInfo: ConnectionInfo) {
         self.connectionInfo = connectionInfo
-        super.init()
-        // Eagerly initialize streams so continuations are set before connect() fires bytes
         _ = stateStream
         _ = outputStream
+    }
+
+    // MARK: - Helpers
+
+    private func yieldState(_ s: ConnectionState) {
+        continuationLock.lock()
+        let c = _stateContinuation
+        continuationLock.unlock()
+        c?.yield(s)
+    }
+
+    private func yieldOutput(_ data: Data) {
+        continuationLock.lock()
+        let c = _outputContinuation
+        continuationLock.unlock()
+        c?.yield(data)
+    }
+
+    private func finishStreams() {
+        continuationLock.lock()
+        let sc = _stateContinuation
+        let oc = _outputContinuation
+        _stateContinuation  = nil
+        _outputContinuation = nil
+        continuationLock.unlock()
+        sc?.finish()
+        oc?.finish()
     }
 
     // MARK: - TerminalConnection
@@ -80,170 +89,137 @@ public final class SSHConnection: NSObject, TerminalConnection {
     public func connect() async throws {
         state = .connecting
 
-        let info = connectionInfo
-        // Load credentials on MainActor before entering the detached task to avoid
-        // calling KeychainHelper from a non-isolated context.
-        let credentialID = connectionInfo.credentialID.uuidString
-        let privateKey = KeychainHelper.loadPrivateKey(connectionID: credentialID)
-        let password   = KeychainHelper.loadPassword(connectionID: credentialID)
+        let info         = connectionInfo
+        let credentialID = info.credentialID.uuidString
+        let privateKey   = KeychainHelper.loadPrivateKey(connectionID: credentialID)
+        let password     = KeychainHelper.loadPassword(connectionID: credentialID)
 
-        // NMSSH network I/O is blocking — run off the MainActor so we don't block the UI.
-        let (session, channel): (NMSSHSession, NMSSHChannel) = try await Task.detached(priority: .userInitiated) {
-            let s = NMSSHSession(toHost: info.hostname, port: Int32(info.port), withUsername: info.username)
-            guard s.connect() else { throw ConnectionError.hostUnreachable }
+        let authMethod: SSHAuthenticationMethod = try buildAuthMethod(
+            username:   info.username,
+            password:   password,
+            privateKey: privateKey
+        )
 
-            if let key = privateKey {
-                let pass = password ?? ""
-                s.authenticateBy(inMemoryPublicKey: nil, privateKey: key, andPassword: pass.isEmpty ? nil : pass)
-                // Fall back to password if key auth failed and a password is available
-                if !s.isAuthorized, let pw = password {
-                    s.authenticate(byPassword: pw)
+        // Bridge the closure-based withTTY to our async connect() return.
+        // The continuation resumes with the TTYStdinWriter once the shell is open.
+        let writer: TTYStdinWriter = try await withCheckedThrowingContinuation { cont in
+            self.sessionTask = Task { @MainActor [weak self] in
+                guard let self else {
+                    cont.resume(throwing: ConnectionError.unknown("Connection deallocated"))
+                    return
                 }
-            } else if let pw = password {
-                s.authenticate(byPassword: pw)
-            } else {
-                s.disconnect()
-                throw ConnectionError.authenticationFailed
-            }
 
-            guard s.isAuthorized else { s.disconnect(); throw ConnectionError.authenticationFailed }
-            guard let ch = s.channel else { s.disconnect(); throw ConnectionError.unknown("Could not create channel") }
+                // Ensures the continuation is resumed exactly once.
+                var didResume = false
 
-            ch.requestPty = true
-            ch.ptyTerminalType = NMSSHChannelPtyTerminalXterm
-            var shellError: NSError?
-            guard ch.startShell(&shellError) else {
-                let msg = shellError?.localizedDescription ?? "Could not start shell"
-                s.disconnect()
-                throw ConnectionError.unknown(msg)
-            }
-            return (s, ch)
-        }.value
+                do {
+                    let client = try await SSHClient.connect(
+                        host: info.hostname,
+                        port: info.port,
+                        authenticationMethod: authMethod,
+                        hostKeyValidator: .acceptAnything(),  // TODO: persist & verify in Phase 2
+                        reconnect: .never
+                    )
+                    self.sshClient = client
 
-        // Back on MainActor — safe to write @MainActor state.
-        // Set nmSession/nmChannel before the guard so channelShellDidClose's queued Task sees
-        // them as non-nil and doesn't treat the close as a no-op during the race window.
-        nmSession = session
-        nmChannel = channel
-        // Guard: disconnect() may have been called while we were suspended at .value above.
-        guard state == .connecting else {
-            nmSession = nil
-            nmChannel = nil
-            // Use libssh2Lock — disconnect() may be concurrently closing via its own detached task.
-            // Calling closeShell/disconnect directly here (on MainActor) without the lock would race
-            // with disconnect()'s detached task on the same non-thread-safe libssh2 session.
-            let lock = libssh2Lock
-            let ch   = channel
-            let sess = session
-            Task.detached(priority: .utility) {
-                lock.lock()
-                defer { lock.unlock() }
-                ch.closeShell()
-                sess.disconnect()
+                    try await client.withTTY { [weak self] inbound, outbound in
+                        guard let self else { return }
+
+                        if !didResume {
+                            didResume = true
+                            cont.resume(returning: outbound)
+                        }
+                        self.ttyWriter = outbound
+
+                        for try await chunk in inbound {
+                            if case .stdout(let buffer) = chunk {
+                                self.yieldOutput(Data(buffer.readableBytesView))
+                            }
+                        }
+
+                        self.state = .disconnected
+                        self.finishStreams()
+                    }
+                } catch {
+                    if !didResume {
+                        didResume = true
+                        cont.resume(throwing: error)
+                    }
+                    self.state = .disconnected
+                    self.finishStreams()
+                }
             }
-            return
         }
-        // Assign delegate on MainActor — safe, and avoids the data race from setting it on the detached task thread
-        channel.delegate = self
-        state = .connected
+
+        ttyWriter = writer
+        state     = .connected
     }
 
     @MainActor
     public func disconnect() async {
-        let ch   = nmChannel
-        let sess = nmSession
-        nmChannel = nil
-        nmSession = nil
-        state = .disconnected
+        let client = sshClient
+        sshClient  = nil
+        ttyWriter  = nil
+        state      = .disconnected
+        finishStreams()
 
-        continuationLock.lock()
-        let sc = _stateContinuation
-        let oc = _outputContinuation
-        _stateContinuation  = nil
-        _outputContinuation = nil
-        continuationLock.unlock()
+        sessionTask?.cancel()
+        sessionTask = nil
 
-        sc?.finish()
-        oc?.finish()
-
-        // closeShell/disconnect block on libssh2 — run off MainActor to avoid UI freeze.
-        // libssh2Lock serializes against any concurrent send() call in a detached task.
-        let lock = libssh2Lock
-        await Task.detached(priority: .utility) {
-            lock.lock()
-            defer { lock.unlock() }
-            ch?.closeShell()
-            sess?.disconnect()
-        }.value
+        try? await client?.close()
     }
 
     @MainActor
     public func send(_ input: String) async throws {
-        guard state == .connected, let channel = nmChannel else {
+        guard state == .connected, let writer = ttyWriter else {
             throw ConnectionError.unknown("Not connected")
         }
-        // channel.write blocks on libssh2 under back-pressure — run off MainActor.
-        // libssh2Lock serializes against concurrent closeShell/disconnect calls.
-        let ch = channel
-        let lock = libssh2Lock
-        try await Task.detached(priority: .userInitiated) {
-            lock.lock()
-            defer { lock.unlock() }
-            var error: NSError?
-            guard ch.write(input, error: &error) else {
-                let msg = error?.localizedDescription ?? "Write failed"
-                throw ConnectionError.unknown(msg)
-            }
-        }.value
+        var buffer = ByteBuffer()
+        buffer.writeString(input)
+        try await writer.write(buffer)
     }
 
     @MainActor
     public func sendData(_ data: Data) async throws {
-        guard let str = String(data: data, encoding: .utf8)
-                     ?? String(data: data, encoding: .isoLatin1) else { return }
-        try await send(str)
+        guard state == .connected, let writer = ttyWriter else {
+            throw ConnectionError.unknown("Not connected")
+        }
+        var buffer = ByteBuffer()
+        buffer.writeBytes(data)
+        try await writer.write(buffer)
     }
 
     @MainActor
     public func resize(cols: Int, rows: Int) async throws {
-        nmChannel?.requestSizeWidth(UInt(cols), height: UInt(rows))
-    }
-}
-
-// MARK: - NMSSHChannelDelegate
-// These fire on NMSSH's libssh2 thread — use continuationLock for all access.
-
-extension SSHConnection: NMSSHChannelDelegate {
-    public func channel(_ channel: NMSSHChannel, didReadRawData data: Data) {
-        yieldOutput(data)
+        try? await ttyWriter?.changeSize(cols: cols, rows: rows, pixelWidth: 0, pixelHeight: 0)
     }
 
-    public func channel(_ channel: NMSSHChannel, didReadData message: String) {
-        guard let data = message.data(using: .utf8) else { return }
-        yieldOutput(data)
-    }
+    // MARK: - Auth
 
-    public func channelShellDidClose(_ channel: NMSSHChannel) {
-        // Update state first so didSet's yieldState fires while the continuation is still live,
-        // then clear and finish the continuations.
-        Task { @MainActor [weak self] in
-            guard let self, self.nmChannel != nil else { return }
-            self.nmChannel = nil   // prevent disconnect() from calling closeShell() on an already-closed channel
-            self.nmSession = nil
-            self.state = .disconnected   // didSet → yieldState → yields to live continuation
-
-            self.continuationLock.lock()
-            let sc = self._stateContinuation
-            let oc = self._outputContinuation
-            self._stateContinuation  = nil
-            self._outputContinuation = nil
-            self.continuationLock.unlock()
-
-            oc?.finish()
-            sc?.finish()
+    private func buildAuthMethod(
+        username:   String,
+        password:   String?,
+        privateKey: String?
+    ) throws -> SSHAuthenticationMethod {
+        if let pem = privateKey, !pem.isEmpty {
+            if let key = try? P256.Signing.PrivateKey(pemRepresentation: pem) {
+                return .p256(username: username, privateKey: key)
+            }
+            if let key = try? P384.Signing.PrivateKey(pemRepresentation: pem) {
+                return .p384(username: username, privateKey: key)
+            }
+            if let key = try? P521.Signing.PrivateKey(pemRepresentation: pem) {
+                return .p521(username: username, privateKey: key)
+            }
+            if let key = try? Curve25519.Signing.PrivateKey(rawRepresentation: Data(base64Encoded: pem.components(separatedBy: "\n").filter { !$0.hasPrefix("-") }.joined() ) ?? Data()) {
+                return .ed25519(username: username, privateKey: key)
+            }
         }
+        if let pw = password, !pw.isEmpty {
+            return .passwordBased(username: username, password: pw)
+        }
+        throw ConnectionError.authenticationFailed
     }
 }
 
-// continuationLock protects all shared mutable state; @MainActor guards nmSession/nmChannel
 extension SSHConnection: @unchecked Sendable {}
