@@ -41,7 +41,6 @@ struct ConnectionSheet: View {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     EditButton()
                         .foregroundStyle(Color.mosaicAccent)
-                        .font(.custom("JetBrains Mono", size: 12))
                     Button {
                         showAddForm = true
                     } label: {
@@ -52,15 +51,23 @@ struct ConnectionSheet: View {
             }
             .sheet(isPresented: $showAddForm) {
                 ConnectionFormView { newConn in
-                    newConn.sortOrder = connections.count
+                    newConn.sortOrder = (connections.map(\.sortOrder).max() ?? -1) + 1
                     context.insert(newConn)
-                    try? context.save()
+                    do {
+                        try context.save()
+                    } catch {
+                        connectError = error.localizedDescription
+                    }
                 }
                 .environment(AppSettings.shared)
             }
             .sheet(item: $editingConnection) { conn in
                 ConnectionFormView(connection: conn) { _ in
-                    try? context.save()
+                    do {
+                        try context.save()
+                    } catch {
+                        connectError = error.localizedDescription
+                    }
                 }
                 .environment(AppSettings.shared)
             }
@@ -135,21 +142,30 @@ struct ConnectionSheet: View {
     private func delete(_ conn: Connection) {
         KeychainHelper.deleteCredentials(connectionID: conn.id.uuidString)
         context.delete(conn)
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            connectError = error.localizedDescription
+        }
     }
 
     private func move(from source: IndexSet, to destination: Int) {
         var sorted = connections
         sorted.move(fromOffsets: source, toOffset: destination)
-        for (index, conn) in sorted.enumerated() {
+        for (index, conn) in sorted.enumerated() where conn.sortOrder != index {
             conn.sortOrder = index
         }
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            connectError = error.localizedDescription
+        }
     }
 }
 
 // MARK: - ConnectionCard
 
+@MainActor
 struct ConnectionCard: View {
     let connection: Connection
     let onConnect: () -> Void
