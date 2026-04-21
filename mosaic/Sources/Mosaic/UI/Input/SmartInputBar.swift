@@ -91,7 +91,8 @@ struct SmartInputBar: View {
             text = ""
             onSend(cmd)
         case .tier3:
-            text = ""
+            // Don't clear text — same cancel-recovery contract as tier1/tier2.
+            // onConfirm in SessionView clears pendingCommand after the command is sent.
             onNeedsApproval(cmd, tier)
         case .tier1, .tier2:
             // Don't clear text — if the user cancels the approval card the command stays in the

@@ -162,7 +162,10 @@ struct ApprovalCardView: View {
                 if tier3Progress >= 1.0 {
                     tier3Timer?.invalidate()
                     tier3Timer = nil
-                    if !isCancelled { onConfirm() }
+                    if !isCancelled && !hasConfirmed {
+                        hasConfirmed = true
+                        onConfirm()
+                    }
                 }
             }
         }
