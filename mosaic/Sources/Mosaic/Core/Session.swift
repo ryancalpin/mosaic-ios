@@ -67,12 +67,12 @@ public final class Session: ObservableObject, Identifiable {
         headTimeoutTask = nil
         outputTask?.cancel()
         outputTask = nil
+        await connection.disconnect()  // close stream before clearing queue — prevents handleOutput accessing empty pendingQueue
         for entry in pendingQueue {
             entry.block.rawOutput += "\n[session closed]"
             entry.block.isStreaming = false
         }
         pendingQueue.removeAll()
-        await connection.disconnect()
     }
 
     // MARK: - Head Timeout
@@ -117,6 +117,7 @@ public final class Session: ObservableObject, Identifiable {
         } catch {
             block.rawOutput = "[send error: \(error.localizedDescription)]"
             block.isStreaming = false
+            pendingCommand = command  // restore input so user can retry
             if let idx = pendingQueue.firstIndex(where: { $0.block === block }) {
                 let wasHead = (idx == 0)
                 pendingQueue.remove(at: idx)

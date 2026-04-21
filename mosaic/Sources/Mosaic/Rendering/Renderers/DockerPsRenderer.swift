@@ -69,7 +69,7 @@ public final class DockerPsRenderer: OutputRenderer {
 
         var containers: [ContainerRow] = []
 
-        for line in lines[(headerIndex + 1)...] where line.utf8.count >= namesOffset {
+        for line in lines[(headerIndex + 1)...] where line.utf8.count >= portsOffset {
             func col(from start: Int, to end: Int) -> String {
                 let u = line.utf8
                 guard start < u.count else { return "" }
