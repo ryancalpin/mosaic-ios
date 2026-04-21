@@ -147,7 +147,7 @@ public final class Session: ObservableObject, Identifiable {
             }
             .joined(separator: "\n")
         let cleanLines = clean.components(separatedBy: CharacterSet.newlines)
-        let hasDone = cleanLines.contains { $0.trimmingCharacters(in: .whitespaces) == Self.doneMarker }
+        let hasDone = cleanLines.contains { $0.trimmingCharacters(in: .whitespacesAndNewlines) == Self.doneMarker }
         if hasDone {
             let entry = pendingQueue.removeFirst()
             extractSentinels(from: clean)
