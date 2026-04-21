@@ -30,6 +30,17 @@ public final class GitStatusRenderer: OutputRenderer {
         var inStagedSection   = false
         var inUntrackedSection = false
 
+        // Diverged-branch counts span one or two lines depending on terminal width.
+        // Search the full output once so wrapping doesn't cause silent zero values.
+        if output.contains("diverged"),
+           let r = output.range(of: #"have (\d+) and (\d+) different"#, options: .regularExpression) {
+            let nums = String(output[r])
+                .components(separatedBy: CharacterSet.decimalDigits.inverted)
+                .filter { !$0.isEmpty }
+            ahead  = Int(nums.first ?? "") ?? 0
+            behind = Int(nums.dropFirst().first ?? "") ?? 0
+        }
+
         for line in output.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
@@ -47,15 +58,7 @@ public final class GitStatusRenderer: OutputRenderer {
                 inStagedSection   = false
                 inUntrackedSection = true
             } else if trimmed.contains("diverged") {
-                // "Your branch and 'origin/main' have diverged, and have 3 and 1 different commits each"
-                // Extract the two counts via regex to avoid fragile word-index arithmetic.
-                if let range = trimmed.range(of: #"have (\d+) and (\d+) different"#, options: .regularExpression) {
-                    let nums = String(trimmed[range])
-                        .components(separatedBy: CharacterSet.decimalDigits.inverted)
-                        .filter { !$0.isEmpty }
-                    ahead  = Int(nums.first ?? "") ?? 0
-                    behind = Int(nums.dropFirst().first ?? "") ?? 0
-                }
+                // diverged counts already extracted above; skip per-line parsing
             } else if trimmed.contains("ahead") {
                 // "Your branch is ahead of 'origin/main' by 2 commits."
                 let parts = trimmed.components(separatedBy: " ")
