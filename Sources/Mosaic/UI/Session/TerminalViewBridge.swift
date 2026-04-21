@@ -47,6 +47,10 @@ struct TerminalViewBridge: UIViewRepresentable {
         context.coordinator.session      = session
         session.terminalCoordinator      = context.coordinator
 
+        // Re-apply theme-sensitive colors whenever SwiftUI re-renders (e.g. on colorScheme change)
+        uiView.backgroundColor       = UIColor(Color.mosaicBg)
+        uiView.nativeBackgroundColor = UIColor(Color.mosaicBg)
+
         // Re-report dimensions if the frame changed (rotation, split view)
         let newFrame = CGRect(origin: .zero, size: size)
         if uiView.frame != newFrame {
@@ -69,7 +73,7 @@ struct TerminalViewBridge: UIViewRepresentable {
         // MARK: - TerminalFeeder
 
         func feed(data: Data) {
-            terminalView?.feed(byteArray: [UInt8](data))
+            terminalView?.feed(byteArray: ArraySlice([UInt8](data)))
         }
 
         // MARK: - TerminalViewDelegate

@@ -7,7 +7,7 @@ extension Color {
         if hex.hasPrefix("#") { hex.removeFirst() }
         let scanner = Scanner(string: hex)
         var rgb: UInt64 = 0
-        guard scanner.scanHexInt64(&rgb) else {
+        guard scanner.scanHexInt64(&rgb) else { // fallback gray for invalid hex
             self.init(red: 0.5, green: 0.5, blue: 0.5)
             return
         }
@@ -24,7 +24,7 @@ extension UIColor {
         if hex.hasPrefix("#") { hex.removeFirst() }
         let scanner = Scanner(string: hex)
         var rgb: UInt64 = 0
-        guard scanner.scanHexInt64(&rgb) else {
+        guard scanner.scanHexInt64(&rgb) else { // fallback gray for invalid hex
             self.init(red: 0.5, green: 0.5, blue: 0.5, alpha: 1)
             return
         }
