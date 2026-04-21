@@ -96,7 +96,7 @@ public final class Session: ObservableObject, Identifiable {
         else { return }
 
         outputBuffer += text
-        activeBlock?.rawOutput += text
+        activeBlock?.rawOutput += text.strippingANSI
 
         let clean = outputBuffer.strippingANSI
         if clean.contains(Self.doneMarker), let block = activeBlock {

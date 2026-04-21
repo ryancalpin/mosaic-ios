@@ -135,6 +135,7 @@ public final class SSHConnection: NSObject, TerminalConnection {
         oc?.finish()
     }
 
+    @MainActor
     public func send(_ input: String) async throws {
         guard state == .connected, let channel = nmChannel else {
             throw ConnectionError.unknown("Not connected")
@@ -146,11 +147,13 @@ public final class SSHConnection: NSObject, TerminalConnection {
         }
     }
 
+    @MainActor
     public func sendData(_ data: Data) async throws {
         guard let str = String(data: data, encoding: .utf8) else { return }
         try await send(str)
     }
 
+    @MainActor
     public func resize(cols: Int, rows: Int) async throws {
         nmChannel?.requestSizeWidth(UInt(cols), height: UInt(rows))
     }

@@ -134,8 +134,8 @@ struct StatusDot: View {
             .onAppear {
                 if state == .connected { pulsing = true }
             }
-            .onChange(of: state) { newState in
-                pulsing = (newState == .connected)
+            .onChange(of: state) {
+                pulsing = (state == .connected)
             }
     }
 }

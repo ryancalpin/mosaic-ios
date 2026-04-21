@@ -13,11 +13,11 @@ public protocol TerminalConnection: AnyObject {
     var stateStream: AsyncStream<ConnectionState> { get }
     var outputStream: AsyncStream<Data> { get }
 
-    func connect() async throws
-    func disconnect() async
-    func send(_ input: String) async throws
-    func sendData(_ data: Data) async throws
-    func resize(cols: Int, rows: Int) async throws
+    @MainActor func connect() async throws
+    @MainActor func disconnect() async
+    @MainActor func send(_ input: String) async throws
+    @MainActor func sendData(_ data: Data) async throws
+    @MainActor func resize(cols: Int, rows: Int) async throws
 }
 
 // MARK: - ConnectionInfo

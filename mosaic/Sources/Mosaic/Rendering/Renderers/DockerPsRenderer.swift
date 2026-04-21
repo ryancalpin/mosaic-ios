@@ -52,7 +52,7 @@ public final class DockerPsRenderer: OutputRenderer {
 
         var containers: [ContainerRow] = []
 
-        for line in lines.dropFirst() where line.count > namesOffset {
+        for line in lines.dropFirst() where line.count >= namesOffset {
             func col(from start: Int, to end: Int) -> String {
                 let s = line.index(line.startIndex, offsetBy: min(start, line.count))
                 let e = line.index(line.startIndex, offsetBy: min(end, line.count))

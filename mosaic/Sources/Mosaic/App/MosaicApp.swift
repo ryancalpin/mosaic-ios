@@ -7,10 +7,6 @@ struct MosaicApp: App {
         WindowGroup {
             RootView()
                 .modelContainer(for: [Connection.self])
-                .onAppear {
-                    // RendererRegistry bootstraps itself on first access
-                    _ = RendererRegistry.shared
-                }
         }
     }
 }
