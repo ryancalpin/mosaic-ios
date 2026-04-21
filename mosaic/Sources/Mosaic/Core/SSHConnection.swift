@@ -173,20 +173,21 @@ extension SSHConnection: NMSSHChannelDelegate {
     }
 
     public func channelShellDidClose(_ channel: NMSSHChannel) {
-        continuationLock.lock()
-        let sc = _stateContinuation
-        let oc = _outputContinuation
-        _stateContinuation  = nil
-        _outputContinuation = nil
-        continuationLock.unlock()
-
-        oc?.finish()
-        sc?.yield(.disconnected)
-        sc?.finish()
-
-        // Update @MainActor state property on the main thread
+        // Update state first so didSet's yieldState fires while the continuation is still live,
+        // then clear and finish the continuations.
         DispatchQueue.main.async { [weak self] in
-            self?.state = .disconnected
+            guard let self else { return }
+            self.state = .disconnected   // didSet → yieldState → yields to live continuation
+
+            self.continuationLock.lock()
+            let sc = self._stateContinuation
+            let oc = self._outputContinuation
+            self._stateContinuation  = nil
+            self._outputContinuation = nil
+            self.continuationLock.unlock()
+
+            oc?.finish()
+            sc?.finish()
         }
     }
 }

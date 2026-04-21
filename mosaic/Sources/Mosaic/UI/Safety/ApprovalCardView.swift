@@ -120,8 +120,9 @@ struct ApprovalCardView: View {
             let elapsed = Date().timeIntervalSince(start)
             holdProgress = min(CGFloat(elapsed / 2.0), 1.0)
             if holdProgress >= 1.0 {
+                let confirm = onConfirm
                 cancelHolding()
-                onConfirm()
+                confirm()
             }
         }
         // Schedule on .common so it fires even when keyboard scroll tracking is active

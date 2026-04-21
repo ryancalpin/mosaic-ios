@@ -46,10 +46,10 @@ public final class Session: ObservableObject, Identifiable {
     // MARK: - Lifecycle
 
     public func start() {
-        outputTask = Task { [weak self] in
+        outputTask = Task { @MainActor [weak self] in
             guard let self else { return }
             for await data in connection.outputStream {
-                await handleOutput(data)
+                await self.handleOutput(data)
             }
         }
     }
@@ -99,7 +99,9 @@ public final class Session: ObservableObject, Identifiable {
         activeBlock?.rawOutput += text.strippingANSI
 
         let clean = outputBuffer.strippingANSI
-        if clean.contains(Self.doneMarker), let block = activeBlock {
+        let cleanLines = clean.components(separatedBy: CharacterSet.newlines)
+        let hasDone = cleanLines.contains { $0.trimmingCharacters(in: .whitespaces) == Self.doneMarker }
+        if hasDone, let block = activeBlock {
             extractSentinels(from: clean)
             finalizeBlock(block)
         }

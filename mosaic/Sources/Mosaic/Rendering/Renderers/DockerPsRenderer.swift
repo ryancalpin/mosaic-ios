@@ -54,6 +54,7 @@ public final class DockerPsRenderer: OutputRenderer {
 
         for line in lines.dropFirst() where line.count >= namesOffset {
             func col(from start: Int, to end: Int) -> String {
+                guard start <= line.count else { return "" }
                 let s = line.index(line.startIndex, offsetBy: min(start, line.count))
                 let e = line.index(line.startIndex, offsetBy: min(end, line.count))
                 return String(line[s..<e]).trimmingCharacters(in: .whitespaces)
