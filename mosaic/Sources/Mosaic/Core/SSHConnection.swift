@@ -108,7 +108,7 @@ public final class SSHConnection: NSObject, TerminalConnection {
             ch.requestPty = true
             ch.ptyTerminalType = NMSSHChannelPtyTerminalXterm
             // Delegate set before startShell so the initial MOTD/banner bytes are captured
-            ch.delegate = self as? NMSSHChannelDelegate
+            ch.delegate = self as NMSSHChannelDelegate
             var shellError: NSError?
             guard ch.startShell(&shellError) else {
                 let msg = shellError?.localizedDescription ?? "Could not start shell"
