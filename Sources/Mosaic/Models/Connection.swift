@@ -5,16 +5,16 @@ import SwiftData
 
 @Model
 public final class Connection {
-    public var id: UUID
-    public var name: String
-    public var hostname: String
-    public var port: Int
-    public var username: String
-    public var transport: String          // TransportProtocol.rawValue
-    public var createdAt: Date
+    public var id: UUID          = UUID()
+    public var name: String      = ""
+    public var hostname: String  = ""
+    public var port: Int         = 22
+    public var username: String  = ""
+    public var transport: String = "SSH"   // TransportProtocol.rawValue
+    public var createdAt: Date   = Date()
     public var lastConnectedAt: Date?
-    public var colorHex: String           // tab indicator color (user-picked)
-    public var sortOrder: Int
+    public var colorHex: String  = "#00D4AA"  // tab indicator color (user-picked)
+    public var sortOrder: Int    = 0
 
     // NOTE: Credentials (password / private key) are stored in Keychain.
     // Use id.uuidString as the Keychain account key.
