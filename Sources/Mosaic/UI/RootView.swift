@@ -65,6 +65,7 @@ struct RootView: View {
                     }
                 }
             }
+            .environment(AppSettings.shared)
         }
         .alert("Connection Error", isPresented: Binding(
             get: { connectionError != nil },
