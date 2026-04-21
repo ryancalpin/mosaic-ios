@@ -78,7 +78,7 @@ public final class DockerPsRenderer: OutputRenderer {
             let image       = col(from: imageOffset, to: commandOffset)
             let status      = col(from: statusOffset, to: portsOffset)
             let ports       = col(from: portsOffset, to: namesOffset)
-            let name        = col(from: namesOffset, to: line.count)
+            let name        = col(from: namesOffset, to: line.utf8.count)
 
             guard !containerID.isEmpty, !name.isEmpty else { continue }
 

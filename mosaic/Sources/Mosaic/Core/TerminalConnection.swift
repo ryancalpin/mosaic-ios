@@ -27,12 +27,16 @@ public struct ConnectionInfo: Equatable, Sendable {
     public let port: Int
     public let username: String
     public let transport: TransportProtocol
+    // UUID of the SwiftData Connection model — used as the Keychain lookup key so credentials
+    // are tied to the saved server, not to an ephemeral SSHConnection instance.
+    public let credentialID: UUID
 
-    public init(hostname: String, port: Int = 22, username: String, transport: TransportProtocol) {
+    public init(hostname: String, port: Int = 22, username: String, transport: TransportProtocol, credentialID: UUID) {
         self.hostname = hostname
         self.port = port
         self.username = username
         self.transport = transport
+        self.credentialID = credentialID
     }
 }
 

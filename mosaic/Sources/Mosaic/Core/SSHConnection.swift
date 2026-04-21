@@ -79,9 +79,9 @@ public final class SSHConnection: NSObject, TerminalConnection {
         let info = connectionInfo
         // Load credentials on MainActor before entering the detached task to avoid
         // calling KeychainHelper from a non-isolated context.
-        let connID   = id.uuidString
-        let privateKey = KeychainHelper.loadPrivateKey(connectionID: connID)
-        let password   = KeychainHelper.loadPassword(connectionID: connID)
+        let credentialID = connectionInfo.credentialID.uuidString
+        let privateKey = KeychainHelper.loadPrivateKey(connectionID: credentialID)
+        let password   = KeychainHelper.loadPassword(connectionID: credentialID)
 
         // NMSSH network I/O is blocking — run off the MainActor so we don't block the UI.
         let (session, channel): (NMSSHSession, NMSSHChannel) = try await Task.detached(priority: .userInitiated) {

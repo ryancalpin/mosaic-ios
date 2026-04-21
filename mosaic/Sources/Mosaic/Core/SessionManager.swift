@@ -26,24 +26,20 @@ public final class SessionManager: ObservableObject {
 
     public func openSession(for connection: Connection) async throws {
         let info = ConnectionInfo(
-            hostname:  connection.hostname,
-            port:      connection.port,
-            username:  connection.username,
-            transport: connection.transportProtocol
+            hostname:     connection.hostname,
+            port:         connection.port,
+            username:     connection.username,
+            transport:    connection.transportProtocol,
+            credentialID: connection.id
         )
 
         let transport: any TerminalConnection
         switch connection.transportProtocol {
         case .ssh:
-            let ssh = SSHConnection(connectionInfo: info)
-            // Copy the connection's UUID as the Keychain key so credentials resolve
-            transfer(keychainFrom: connection, to: ssh)
-            transport = ssh
+            transport = SSHConnection(connectionInfo: info)
         case .mosh:
             // Mosh not yet integrated — fall back to SSH
-            let ssh = SSHConnection(connectionInfo: info)
-            transfer(keychainFrom: connection, to: ssh)
-            transport = ssh
+            transport = SSHConnection(connectionInfo: info)
         }
 
         let session = Session(connection: transport)
@@ -59,9 +55,6 @@ public final class SessionManager: ObservableObject {
             if activeSessionID == session.id {
                 activeSessionID = sessions.last?.id
             }
-            if let ssh = transport as? SSHConnection {
-                KeychainHelper.deleteCredentials(connectionID: ssh.id.uuidString)
-            }
             throw error
         }
 
@@ -74,30 +67,13 @@ public final class SessionManager: ObservableObject {
         if activeSessionID == session.id {
             activeSessionID = sessions.last?.id
         }
-        Task {
-            await session.stop()
-            if let ssh = session.connection as? SSHConnection {
-                KeychainHelper.deleteCredentials(connectionID: ssh.id.uuidString)
-            }
-        }
+        Task { await session.stop() }
     }
 
     public func activate(_ session: Session) {
         activeSessionID = session.id
     }
 
-    // MARK: - Helpers
-
-    private func transfer(keychainFrom connection: Connection, to ssh: SSHConnection) {
-        let srcID = connection.id.uuidString
-        let dstID = ssh.id.uuidString
-        if let pw = KeychainHelper.loadPassword(connectionID: srcID) {
-            KeychainHelper.savePassword(pw, connectionID: dstID)
-        }
-        if let key = KeychainHelper.loadPrivateKey(connectionID: srcID) {
-            KeychainHelper.savePrivateKey(key, connectionID: dstID)
-        }
-    }
 }
 
 // Rethrow so callers can handle connection errors

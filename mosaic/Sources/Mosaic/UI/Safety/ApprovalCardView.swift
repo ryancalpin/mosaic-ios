@@ -19,6 +19,7 @@ struct ApprovalCardView: View {
     @State private var isHolding = false
     @State private var tier3Progress: CGFloat = 0.0
     @State private var tier3Timer: Timer? = nil
+    @State private var isCancelled = false
 
     private var isTier1: Bool {
         if case .tier1 = tier { return true }
@@ -87,6 +88,7 @@ struct ApprovalCardView: View {
             // Buttons
             HStack(spacing: 10) {
                 Button("Cancel") {
+                    isCancelled = true
                     onCancel()
                 }
                 .buttonStyle(MosaicSecondaryButtonStyle())
@@ -157,7 +159,7 @@ struct ApprovalCardView: View {
                 if tier3Progress >= 1.0 {
                     tier3Timer?.invalidate()
                     tier3Timer = nil
-                    onConfirm()
+                    if !isCancelled { onConfirm() }
                 }
             }
         }

@@ -56,7 +56,7 @@ public final class GitStatusRenderer: OutputRenderer {
                 if inStagedSection { staged.append(file) } else { modified.append(file) }
             } else if trimmed.hasPrefix("deleted:") {
                 let file = trimmed.replacingOccurrences(of: "deleted:", with: "").trimmingCharacters(in: .whitespaces)
-                deleted.append(file)
+                if inStagedSection { staged.append(file) } else { deleted.append(file) }
             } else if trimmed.hasPrefix("new file:") {
                 let file = trimmed.replacingOccurrences(of: "new file:", with: "").trimmingCharacters(in: .whitespaces)
                 staged.append(file)
