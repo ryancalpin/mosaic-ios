@@ -149,8 +149,14 @@ public final class Session: ObservableObject, Identifiable {
         if prevLen > kOverlap {
             let rawTail = ns.substring(from: ns.length - textNSLen - kOverlap)
             let cleanTail = rawTail.strippingANSI
+            // Determine how many clean chars the overlap region (kOverlap raw chars) produced
+            // so we remove exactly that many — not a fixed 64, which would over-delete when
+            // the overlap contains ANSI sequences that strip to fewer clean chars.
+            let rawOverlapOnly = ns.substring(with: NSRange(location: ns.length - textNSLen - kOverlap,
+                                                            length: kOverlap))
+            let cleanOverlapLen = rawOverlapOnly.strippingANSI.count
             let cleanNS = NSMutableString(string: pendingQueue[0].cleanBuffer)
-            let removeLen = min(kOverlap, cleanNS.length)
+            let removeLen = min(cleanOverlapLen, cleanNS.length)
             if removeLen > 0 {
                 cleanNS.deleteCharacters(in: NSRange(location: cleanNS.length - removeLen, length: removeLen))
             }

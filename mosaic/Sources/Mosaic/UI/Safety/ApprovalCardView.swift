@@ -125,6 +125,8 @@ struct ApprovalCardView: View {
                     )
                 } else {
                     Button("Confirm") {
+                        guard !hasConfirmed else { return }
+                        hasConfirmed = true
                         onConfirm()
                     }
                     .buttonStyle(MosaicDestructiveButtonStyle())

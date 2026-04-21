@@ -25,6 +25,10 @@ public final class SSHConnection: NSObject, TerminalConnection {
     private var _stateContinuation:  AsyncStream<ConnectionState>.Continuation?
     private var _outputContinuation: AsyncStream<Data>.Continuation?
 
+    // Serializes all libssh2 I/O (send/closeShell/disconnect) since libssh2 is not thread-safe.
+    // Required when send() and disconnect() can race in concurrent detached tasks.
+    private let libssh2Lock = NSLock()
+
     private func yieldState(_ s: ConnectionState) {
         continuationLock.lock()
         let c = _stateContinuation
@@ -152,8 +156,12 @@ public final class SSHConnection: NSObject, TerminalConnection {
         sc?.finish()
         oc?.finish()
 
-        // closeShell/disconnect block on libssh2 — run off MainActor to avoid UI freeze
+        // closeShell/disconnect block on libssh2 — run off MainActor to avoid UI freeze.
+        // libssh2Lock serializes against any concurrent send() call in a detached task.
+        let lock = libssh2Lock
         await Task.detached(priority: .utility) {
+            lock.lock()
+            defer { lock.unlock() }
             ch?.closeShell()
             sess?.disconnect()
         }.value
@@ -164,9 +172,13 @@ public final class SSHConnection: NSObject, TerminalConnection {
         guard state == .connected, let channel = nmChannel else {
             throw ConnectionError.unknown("Not connected")
         }
-        // channel.write blocks on libssh2 under back-pressure — run off MainActor
+        // channel.write blocks on libssh2 under back-pressure — run off MainActor.
+        // libssh2Lock serializes against concurrent closeShell/disconnect calls.
         let ch = channel
+        let lock = libssh2Lock
         try await Task.detached(priority: .userInitiated) {
+            lock.lock()
+            defer { lock.unlock() }
             var error: NSError?
             guard ch.write(input, error: &error) else {
                 let msg = error?.localizedDescription ?? "Write failed"
