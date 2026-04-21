@@ -92,7 +92,7 @@ public final class SSHConnection: NSObject, TerminalConnection {
 
         channel.delegate = self
         channel.requestPty = true
-        channel.ptyTerminalType = NMSSHChannelPtyTerminal.xterm
+        channel.ptyTerminalType = NMSSHChannelPtyTerminalXterm
 
         var shellError: NSError?
         guard channel.startShell(&shellError) else {
@@ -125,9 +125,9 @@ public final class SSHConnection: NSObject, TerminalConnection {
             throw ConnectionError.unknown("Not connected")
         }
         var error: NSError?
-        channel.write(input, error: &error, timeout: 5)
-        if let error {
-            throw ConnectionError.unknown(error.localizedDescription)
+        guard channel.write(input, error: &error) else {
+            let msg = error?.localizedDescription ?? "Write failed"
+            throw ConnectionError.unknown(msg)
         }
     }
 
@@ -137,7 +137,7 @@ public final class SSHConnection: NSObject, TerminalConnection {
     }
 
     public func resize(cols: Int, rows: Int) async throws {
-        nmChannel?.requestSizeWidth(UInt32(cols), height: UInt32(rows))
+        nmChannel?.requestSizeWidth(UInt(cols), height: UInt(rows))
     }
 
     // MARK: - Read Loop
@@ -156,13 +156,14 @@ public final class SSHConnection: NSObject, TerminalConnection {
 // MARK: - NMSSHChannelDelegate
 
 extension SSHConnection: NMSSHChannelDelegate {
-    public func channel(_ channel: NMSSHChannel, didReadData message: String) {
-        guard let data = message.data(using: .utf8) else { return }
+    // Prefer raw bytes — preserve all terminal control sequences intact for SwiftTerm
+    public func channel(_ channel: NMSSHChannel, didReadRawData data: Data) {
         outputContinuation?.yield(data)
     }
 
-    public func channel(_ channel: NMSSHChannel, didReadError error: String) {
-        guard let data = error.data(using: .utf8) else { return }
+    public func channel(_ channel: NMSSHChannel, didReadData message: String) {
+        // Fallback if didReadRawData is not called (older NMSSH versions)
+        guard let data = message.data(using: .utf8) else { return }
         outputContinuation?.yield(data)
     }
 

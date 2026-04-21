@@ -2,8 +2,11 @@ import SwiftUI
 
 // MARK: - SessionView
 //
-// The main content area for one session.
-// Scrollable list of OutputBlocks + BreadcrumbBar + SmartInputBar.
+// Layout: BreadcrumbBar → [ScrollView of OutputBlocks | TerminalView] → SmartInputBar
+//
+// TerminalViewBridge is always present in the hierarchy (zero-size overlay).
+// It processes all SSH bytes through SwiftTerm's VT100 engine regardless
+// of whether we're showing native or raw output — per spec "Never bypass SwiftTerm."
 
 struct SessionView: View {
     @ObservedObject var session: Session
@@ -24,53 +27,57 @@ struct SessionView: View {
                 ahead:     session.aheadCount
             )
 
-            // Output scroll
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(session.blocks) { block in
-                            OutputBlockView(block: block)
-                                .id(block.id)
+            // Main content area
+            ZStack(alignment: .topLeading) {
+                // SwiftTerm — always processing, zero-size when not shown directly.
+                // In Phase 1 it runs as the VT100 back-end.
+                // Phase 2+: show it full-screen when no renderer matches.
+                TerminalViewBridge(session: session)
+                    .frame(width: 0, height: 0)
+                    .opacity(0)
 
-                            Divider()
-                                .background(Color.mosaicBorder.opacity(0.4))
-                        }
+                // Output blocks scroll
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(session.blocks) { block in
+                                OutputBlockView(block: block)
+                                    .id(block.id)
+                                Divider()
+                                    .background(Color.mosaicBorder.opacity(0.4))
+                            }
 
-                        // Approval card inline at bottom
-                        if showApproval, let cmd = approvalCommand {
-                            ApprovalCardView(
-                                command: cmd,
-                                tier: approvalTier,
-                                onConfirm: {
-                                    showApproval = false
-                                    Task { await session.send(cmd) }
-                                },
-                                onCancel: {
-                                    showApproval = false
-                                    approvalCommand = nil
-                                }
-                            )
-                            .padding(14)
-                            .id("approval")
-                        }
+                            if showApproval, let cmd = approvalCommand {
+                                ApprovalCardView(
+                                    command: cmd,
+                                    tier: approvalTier,
+                                    onConfirm: {
+                                        showApproval = false
+                                        Task { await session.send(cmd) }
+                                    },
+                                    onCancel: {
+                                        showApproval = false
+                                        approvalCommand = nil
+                                    }
+                                )
+                                .padding(14)
+                                .id("approval")
+                            }
 
-                        Color.clear.frame(height: 8).id("bottom")
-                    }
-                }
-                .onChange(of: session.blocks.count) { _ in
-                    withAnimation {
-                        proxy.scrollTo("bottom", anchor: .bottom)
-                    }
-                }
-                .onChange(of: showApproval) { shown in
-                    if shown {
-                        withAnimation {
-                            proxy.scrollTo("approval", anchor: .bottom)
+                            Color.clear.frame(height: 8).id("bottom")
                         }
                     }
+                    .onChange(of: session.blocks.count) { _ in
+                        withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                    }
+                    .onChange(of: showApproval) { shown in
+                        if shown {
+                            withAnimation { proxy.scrollTo("approval", anchor: .bottom) }
+                        }
+                    }
                 }
+                .background(Color.mosaicBg)
             }
-            .background(Color.mosaicBg)
 
             // Smart input bar
             SmartInputBar(
@@ -80,8 +87,8 @@ struct SessionView: View {
                 },
                 onNeedsApproval: { cmd, tier in
                     approvalCommand = cmd
-                    approvalTier = tier
-                    showApproval = true
+                    approvalTier    = tier
+                    showApproval    = true
                 }
             )
         }

@@ -1,11 +1,14 @@
 import Foundation
-import SwiftData
 
 // MARK: - Session
 //
 // Manages one active terminal session — one tab in the tab bar.
 // Owns a TerminalConnection (SSH or Mosh), accumulates OutputBlocks,
 // tracks current directory and git branch for the breadcrumb.
+//
+// Data flow:
+//   SSH bytes → SwiftTerm (ground truth VT100 processor)
+//              → clean text tapped here → RendererRegistry → OutputBlock
 
 @MainActor
 public final class Session: ObservableObject, Identifiable {
@@ -16,9 +19,10 @@ public final class Session: ObservableObject, Identifiable {
     @Published public var currentDirectory: String = "~"
     @Published public var currentBranch: String? = nil
     @Published public var aheadCount: Int = 0
-
-    // The command currently being typed / not yet submitted
     @Published public var pendingCommand: String = ""
+
+    // SwiftTerm coordinator — set by TerminalViewBridge when the view appears
+    public weak var terminalCoordinator: AnyObject? = nil
 
     private var outputBuffer: String = ""
     private var activeBlock: OutputBlock? = nil
@@ -26,7 +30,7 @@ public final class Session: ObservableObject, Identifiable {
 
     // Shell prompt detector — matches common bash/zsh prompts ending with $ or #
     private static let promptPattern = try? NSRegularExpression(
-        pattern: #"(?:^|\n)[^\n]*[$#]\s*$"#
+        pattern: #"(?:^|\n)[^\n$#]*[$#]\s*$"#
     )
 
     public init(connection: any TerminalConnection) {
@@ -36,7 +40,8 @@ public final class Session: ObservableObject, Identifiable {
     // MARK: - Lifecycle
 
     public func start() {
-        outputTask = Task {
+        outputTask = Task { [weak self] in
+            guard let self else { return }
             for await data in connection.outputStream {
                 await handleOutput(data)
             }
@@ -52,18 +57,17 @@ public final class Session: ObservableObject, Identifiable {
     // MARK: - Sending Commands
 
     public func send(_ command: String) async {
-        let tier = SafetyClassifier.shared.classify(command)
-        guard tier.isImmediate else { return }
-
         let block = OutputBlock(command: command)
         block.isStreaming = true
         blocks.append(block)
         activeBlock = block
         outputBuffer = ""
 
+        // Run a silent pwd + branch check after every command to keep breadcrumb current
+        let fullCmd = command + "; echo \"__MOSAIC_PWD__$(pwd)\"; git branch --show-current 2>/dev/null | sed 's/^/__MOSAIC_BRANCH__/'\n"
+
         do {
-            try await connection.send(command + "\n")
-            // After sending, run bookkeeping commands silently
+            try await connection.send(fullCmd)
         } catch {
             block.rawOutput = "[send error: \(error.localizedDescription)]"
             block.isStreaming = false
@@ -74,68 +78,84 @@ public final class Session: ObservableObject, Identifiable {
     // MARK: - Output Handling
 
     private func handleOutput(_ data: Data) async {
-        guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else { return }
+        // 1. Feed raw bytes to SwiftTerm (ground truth VT100 processor)
+        feedSwiftTerm(data)
+
+        guard let text = String(data: data, encoding: .utf8)
+                      ?? String(data: data, encoding: .isoLatin1)
+        else { return }
 
         outputBuffer += text
+        activeBlock?.rawOutput += text
 
-        guard let block = activeBlock else { return }
+        // 2. Check for our sentinel markers (breadcrumb updates)
+        processSentinels()
 
-        // Append raw output to current block
-        block.rawOutput += text
-
-        // Check if prompt has returned (command complete)
+        // 3. Detect command completion via prompt pattern
         let clean = outputBuffer.strippingANSI
-        if looksLikePromptReturn(clean) {
+        if looksLikePromptReturn(clean), let block = activeBlock {
             finalizeBlock(block)
+        }
+    }
+
+    private func feedSwiftTerm(_ data: Data) {
+        // TerminalViewBridge.Coordinator conforms to this; we avoid a direct SwiftTerm import
+        // in the view layer by routing through the session.
+        guard let coordinator = terminalCoordinator as? TerminalFeeder else { return }
+        coordinator.feed(data: data)
+    }
+
+    private func processSentinels() {
+        // Extract __MOSAIC_PWD__ and __MOSAIC_BRANCH__ injected after every command
+        let lines = outputBuffer.strippingANSI.components(separatedBy: "\n")
+        for line in lines {
+            if line.hasPrefix("__MOSAIC_PWD__") {
+                let path = String(line.dropFirst("__MOSAIC_PWD__".count))
+                    .trimmingCharacters(in: .whitespaces)
+                if !path.isEmpty { currentDirectory = path }
+            } else if line.hasPrefix("__MOSAIC_BRANCH__") {
+                let branch = String(line.dropFirst("__MOSAIC_BRANCH__".count))
+                    .trimmingCharacters(in: .whitespaces)
+                currentBranch = branch.isEmpty ? nil : branch
+            }
         }
     }
 
     private func looksLikePromptReturn(_ text: String) -> Bool {
         guard let re = Self.promptPattern else { return false }
         let range = NSRange(text.startIndex..., in: text)
-        return re.firstMatch(in: text, range: range) != nil && text.count > 10
+        // Must have some output AND end with a prompt line
+        return re.firstMatch(in: text, range: range) != nil && text.count > 20
     }
 
     private func finalizeBlock(_ block: OutputBlock) {
-        let raw = block.rawOutput.strippingANSI
+        // Strip our sentinels from the raw output before storing
+        let raw = block.rawOutput
+            .strippingANSI
+            .components(separatedBy: "\n")
+            .filter { !$0.hasPrefix("__MOSAIC_PWD__") && !$0.hasPrefix("__MOSAIC_BRANCH__") }
+            .joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Store cleaned raw
+        block.rawOutput = raw
 
         // Pass through renderer registry
         let result = RendererRegistry.shared.process(command: block.command, output: raw)
-        switch result {
-        case .native(let renderer, let data, _):
-            block.rendererID        = renderer.id
+        if case .native(let renderer, _, _) = result {
+            block.rendererID         = renderer.id
             block.rendererBadgeLabel = renderer.badgeLabel
-            // Store renderer data as JSON (best-effort)
-            block.renderedDataJSON  = nil
-        case .raw:
-            break
         }
 
         block.isStreaming = false
         activeBlock = nil
         outputBuffer = ""
-
-        // Parse breadcrumb updates from output
-        updateBreadcrumb(from: raw)
     }
+}
 
-    // MARK: - Breadcrumb Updates
+// MARK: - TerminalFeeder Protocol
 
-    private func updateBreadcrumb(from output: String) {
-        // Extract current directory from pwd output if detected
-        let lines = output.components(separatedBy: "\n")
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("/") || trimmed.hasPrefix("~") {
-                // Looks like a path from pwd
-                if !trimmed.contains(" ") && trimmed.count < 200 {
-                    currentDirectory = trimmed
-                }
-            }
-        }
-    }
-
-    public func updateBranch(_ branch: String?) {
-        currentBranch = branch
-    }
+// Thin protocol so Session doesn't have to import SwiftTerm UI types.
+public protocol TerminalFeeder: AnyObject {
+    func feed(data: Data)
 }

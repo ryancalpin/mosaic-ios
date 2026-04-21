@@ -18,6 +18,27 @@ if ! command -v xcodegen &> /dev/null; then
     brew install xcodegen
 fi
 
+# Download JetBrains Mono font (required — used throughout the UI)
+RESOURCES_DIR="Resources"
+mkdir -p "$RESOURCES_DIR"
+
+FONT_FILES=(
+    "JetBrainsMono-Regular.ttf"
+    "JetBrainsMono-Bold.ttf"
+    "JetBrainsMono-SemiBold.ttf"
+)
+
+FONT_BASE="https://github.com/JetBrains/JetBrainsMono/raw/master/fonts/ttf"
+
+for font in "${FONT_FILES[@]}"; do
+    if [ ! -f "$RESOURCES_DIR/$font" ]; then
+        echo "📥 Downloading $font..."
+        curl -fsSL "$FONT_BASE/$font" -o "$RESOURCES_DIR/$font"
+    fi
+done
+
+echo "✅ Fonts downloaded to Resources/"
+
 # Generate Xcode project
 echo "🏗  Generating Xcode project..."
 xcodegen generate
@@ -25,8 +46,8 @@ xcodegen generate
 echo ""
 echo "✅ Done! Next steps:"
 echo "   1. Open Mosaic.xcodeproj in Xcode"
-echo "   2. Set your Development Team in project settings"
-echo "   3. Let Xcode resolve Swift Package dependencies (it will do this automatically)"
-echo "   4. Open CLAUDE.md and start building with Claude Code"
+echo "   2. Set your Development Team: Xcode → Mosaic target → Signing & Capabilities"
+echo "   3. Let Xcode resolve Swift Package dependencies (automatic on first build)"
+echo "   4. Build and run on a device or simulator"
 echo ""
-echo "   Or just run: open Mosaic.xcodeproj"
+echo "   Quick open: open Mosaic.xcodeproj"

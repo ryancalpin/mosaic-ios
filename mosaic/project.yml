@@ -23,7 +23,7 @@ targets:
       - Sources/Mosaic
     resources:
       - path: Resources
-        optional: true
+        optional: false
     info:
       path: Sources/Mosaic/App/Info.plist
       properties:
@@ -40,6 +40,10 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         NSFaceIDUsageDescription: Used to protect saved server credentials
+        UIAppFonts:
+          - JetBrainsMono-Regular.ttf
+          - JetBrainsMono-Bold.ttf
+          - JetBrainsMono-SemiBold.ttf
     entitlements:
       path: Sources/Mosaic/App/Mosaic.entitlements
       properties:
