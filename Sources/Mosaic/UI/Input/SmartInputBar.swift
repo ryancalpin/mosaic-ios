@@ -12,6 +12,7 @@ struct SmartInputBar: View {
     let onNeedsApproval: (String, SafetyTier) -> Void
 
     @FocusState private var isFocused: Bool
+    @Environment(\.terminalFontSize) private var fontSize
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,16 +36,18 @@ struct SmartInputBar: View {
                     .background(Color.mosaicSurface2)
                     .clipShape(RoundedRectangle(cornerRadius: 4))
                     .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.mosaicBorder, lineWidth: 0.5))
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
                 // Text field
                 TextField("", text: $text, prompt:
                     Text("command")
-                        .font(.custom("JetBrains Mono", size: 14))
+                        .font(.custom("JetBrains Mono", size: fontSize))
                         .foregroundColor(Color.mosaicTextSec.opacity(0.5))
                 )
-                .font(.custom("JetBrains Mono", size: 14))
+                .font(.custom("JetBrains Mono", size: fontSize))
                 .foregroundColor(.mosaicTextPri)
                 .tint(.mosaicAccent)
                 .focused($isFocused)
@@ -59,6 +62,8 @@ struct SmartInputBar: View {
                     Image(systemName: "mic")
                         .font(.system(size: 15))
                         .foregroundColor(.mosaicTextSec)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
@@ -67,9 +72,12 @@ struct SmartInputBar: View {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(text.isEmpty ? .mosaicTextMut : .black)
-                        .frame(width: 30, height: 30)
-                        .background(text.isEmpty ? Color.mosaicSurface2 : Color.mosaicGreen)
-                        .clipShape(Circle())
+                        .frame(width: 44, height: 44)
+                        .background(
+                            Circle()
+                                .fill(text.isEmpty ? Color.mosaicSurface2 : Color.mosaicGreen)
+                                .frame(width: 30, height: 30)
+                        )
                 }
                 .buttonStyle(.plain)
                 .disabled(text.isEmpty)
@@ -85,18 +93,15 @@ struct SmartInputBar: View {
         let cmd = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cmd.isEmpty else { return }
 
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
         let tier = SafetyClassifier.shared.classify(cmd)
         switch tier {
         case .safe:
-            // Caller (SessionView.onSend) clears pendingCommand and restores it on failure
             onSend(cmd)
         case .tier3:
-            // Don't clear text — same cancel-recovery contract as tier1/tier2.
-            // onConfirm in SessionView clears pendingCommand after the command is sent.
             onNeedsApproval(cmd, tier)
         case .tier1, .tier2:
-            // Don't clear text — if the user cancels the approval card the command stays in the
-            // input field so they can edit or retry without retyping. The caller clears it on confirm.
             onNeedsApproval(cmd, tier)
         }
         isFocused = true
