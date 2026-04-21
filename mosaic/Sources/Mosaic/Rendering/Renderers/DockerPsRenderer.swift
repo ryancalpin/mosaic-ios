@@ -79,7 +79,7 @@ public final class DockerPsRenderer: OutputRenderer {
                 // Column boundaries always land on ASCII spaces so samePosition is always valid
                 let s = si.samePosition(in: line) ?? line.startIndex
                 let e = ei.samePosition(in: line) ?? line.endIndex
-                return String(line[s..<e]).trimmingCharacters(in: .whitespaces)
+                return String(line[s..<e]).trimmingCharacters(in: .whitespacesAndNewlines)
             }
 
             let containerID = col(from: idOffset, to: imageOffset)

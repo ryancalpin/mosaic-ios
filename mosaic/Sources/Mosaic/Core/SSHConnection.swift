@@ -111,8 +111,6 @@ public final class SSHConnection: NSObject, TerminalConnection {
 
             ch.requestPty = true
             ch.ptyTerminalType = NMSSHChannelPtyTerminalXterm
-            // Delegate set before startShell so the initial MOTD/banner bytes are captured
-            ch.delegate = self as NMSSHChannelDelegate
             var shellError: NSError?
             guard ch.startShell(&shellError) else {
                 let msg = shellError?.localizedDescription ?? "Could not start shell"
@@ -129,11 +127,13 @@ public final class SSHConnection: NSObject, TerminalConnection {
         nmChannel = channel
         // Guard: disconnect() may have been called while we were suspended at .value above.
         guard state == .connecting else {
+            nmSession = nil   // prevent stale references after early return
+            nmChannel = nil
             channel.closeShell()
             session.disconnect()
             return
         }
-        // Delegate already set inside detached task; reassign here to satisfy MainActor assignment
+        // Assign delegate on MainActor — safe, and avoids the data race from setting it on the detached task thread
         channel.delegate = self
         state = .connected
     }

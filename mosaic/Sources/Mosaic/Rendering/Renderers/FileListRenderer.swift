@@ -49,7 +49,7 @@ public final class FileListRenderer: OutputRenderer {
                     let isDir  = name.hasSuffix("/")
                     let isLink = name.hasSuffix("@")
                     entries.append(FileEntry(
-                        name:        name.trimmingCharacters(in: CharacterSet(charactersIn: "/@")),
+                        name:        (isDir || isLink) ? String(name.dropLast()) : name,
                         type:        isDir ? .directory : isLink ? .symlink : .file,
                         permissions: nil,
                         size:        nil,
