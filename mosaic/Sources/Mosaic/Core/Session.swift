@@ -56,7 +56,7 @@ public final class Session: ObservableObject, Identifiable {
         outputTask = Task { @MainActor [weak self] in
             guard let self else { return }
             for await data in connection.outputStream {
-                await self.handleOutput(data)
+                self.handleOutput(data)
             }
         }
     }
@@ -115,16 +115,17 @@ public final class Session: ObservableObject, Identifiable {
             block.rawOutput = "[send error: \(error.localizedDescription)]"
             block.isStreaming = false
             if let idx = pendingQueue.firstIndex(where: { $0.block === block }) {
+                let wasHead = (idx == 0)
                 pendingQueue.remove(at: idx)
+                if wasHead { armHeadTimeout() }
             }
-            armHeadTimeout()
         }
     }
 
     // MARK: - Output Handling
 
     @MainActor
-    private func handleOutput(_ data: Data) async {
+    private func handleOutput(_ data: Data) {
         terminalCoordinator?.feed(data: data)
 
         guard let text = String(data: data, encoding: .utf8)

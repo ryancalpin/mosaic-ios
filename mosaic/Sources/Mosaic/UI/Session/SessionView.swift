@@ -48,6 +48,7 @@ struct SessionView: View {
                                         tier: approvalTier,
                                         onConfirm: {
                                             showApproval = false
+                                            approvalCommand = nil
                                             Task { await session.send(cmd) }
                                         },
                                         onCancel: {

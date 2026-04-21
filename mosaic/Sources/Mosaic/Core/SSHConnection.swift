@@ -134,8 +134,8 @@ public final class SSHConnection: NSObject, TerminalConnection {
 
     @MainActor
     public func disconnect() async {
-        nmChannel?.closeShell()
-        nmSession?.disconnect()
+        let ch   = nmChannel
+        let sess = nmSession
         nmChannel = nil
         nmSession = nil
         state = .disconnected
@@ -149,6 +149,12 @@ public final class SSHConnection: NSObject, TerminalConnection {
 
         sc?.finish()
         oc?.finish()
+
+        // closeShell/disconnect block on libssh2 — run off MainActor to avoid UI freeze
+        await Task.detached(priority: .utility) {
+            ch?.closeShell()
+            sess?.disconnect()
+        }.value
     }
 
     @MainActor
@@ -156,11 +162,15 @@ public final class SSHConnection: NSObject, TerminalConnection {
         guard state == .connected, let channel = nmChannel else {
             throw ConnectionError.unknown("Not connected")
         }
-        var error: NSError?
-        guard channel.write(input, error: &error) else {
-            let msg = error?.localizedDescription ?? "Write failed"
-            throw ConnectionError.unknown(msg)
-        }
+        // channel.write blocks on libssh2 under back-pressure — run off MainActor
+        let ch = channel
+        try await Task.detached(priority: .userInitiated) {
+            var error: NSError?
+            guard ch.write(input, error: &error) else {
+                let msg = error?.localizedDescription ?? "Write failed"
+                throw ConnectionError.unknown(msg)
+            }
+        }.value
     }
 
     @MainActor
