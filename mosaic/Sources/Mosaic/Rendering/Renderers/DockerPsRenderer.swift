@@ -46,13 +46,19 @@ public final class DockerPsRenderer: OutputRenderer {
             return nil
         }
 
-        let idOffset      = headerLine.distance(from: headerLine.startIndex, to: idRange.lowerBound)
-        let imageOffset   = headerLine.distance(from: headerLine.startIndex, to: imageRange.lowerBound)
-        let commandOffset = headerLine.distance(from: headerLine.startIndex, to: commandRange.lowerBound)
-        let createdOffset = headerLine.distance(from: headerLine.startIndex, to: createdRange.lowerBound)
-        let statusOffset  = headerLine.distance(from: headerLine.startIndex, to: statusRange.lowerBound)
-        let portsOffset   = headerLine.distance(from: headerLine.startIndex, to: portsRange.lowerBound)
-        let namesOffset   = headerLine.distance(from: headerLine.startIndex, to: namesRange.lowerBound)
+        // Compute column offsets as UTF-8 byte distances so they match the byte-indexed
+        // col() function when applied to data rows that may contain non-ASCII characters.
+        let hUTF8 = headerLine.utf8
+        func byteOff(_ idx: String.Index) -> Int {
+            hUTF8.distance(from: hUTF8.startIndex, to: idx.samePosition(in: hUTF8)!)
+        }
+        let idOffset      = byteOff(idRange.lowerBound)
+        let imageOffset   = byteOff(imageRange.lowerBound)
+        let commandOffset = byteOff(commandRange.lowerBound)
+        let createdOffset = byteOff(createdRange.lowerBound)
+        let statusOffset  = byteOff(statusRange.lowerBound)
+        let portsOffset   = byteOff(portsRange.lowerBound)
+        let namesOffset   = byteOff(namesRange.lowerBound)
         _ = createdOffset  // used implicitly via statusOffset boundary
 
         guard let headerIndex = lines.firstIndex(where: { $0.contains("CONTAINER ID") }) else {

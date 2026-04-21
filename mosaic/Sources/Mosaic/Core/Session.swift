@@ -34,6 +34,7 @@ public final class Session: ObservableObject, Identifiable {
     private struct PendingEntry {
         let block: OutputBlock
         var buffer: String = ""
+        var cleanBuffer: String = ""  // incrementally built ANSI-stripped output
     }
     private var pendingQueue: [PendingEntry] = []
     private var outputTask: Task<Void, Never>? = nil
@@ -137,8 +138,29 @@ public final class Session: ObservableObject, Identifiable {
         guard !pendingQueue.isEmpty else { return }
 
         pendingQueue[0].buffer += text
-        // Re-strip from the full buffer so escape sequences split across Data chunks are handled correctly
-        let clean = pendingQueue[0].buffer.strippingANSI
+
+        // Incrementally update cleanBuffer: re-strip only the new text plus a 64-char
+        // overlap from the raw buffer tail to handle ANSI sequences split across packets.
+        // This is O(packet_size) per call vs O(total_buffer_size) for a full re-strip.
+        let kOverlap = 64
+        let ns = pendingQueue[0].buffer as NSString
+        let textNSLen = (text as NSString).length
+        let prevLen = ns.length - textNSLen
+        if prevLen > kOverlap {
+            let rawTail = ns.substring(from: ns.length - textNSLen - kOverlap)
+            let cleanTail = rawTail.strippingANSI
+            let cleanNS = NSMutableString(string: pendingQueue[0].cleanBuffer)
+            let removeLen = min(kOverlap, cleanNS.length)
+            if removeLen > 0 {
+                cleanNS.deleteCharacters(in: NSRange(location: cleanNS.length - removeLen, length: removeLen))
+            }
+            cleanNS.append(cleanTail)
+            pendingQueue[0].cleanBuffer = cleanNS as String
+        } else {
+            pendingQueue[0].cleanBuffer = pendingQueue[0].buffer.strippingANSI
+        }
+        let clean = pendingQueue[0].cleanBuffer
+
         // Filter sentinel lines and the PTY command echo from the live display
         let allMarkers = [Self.doneMarker, Self.pwdMarker, Self.branchMarker, Self.aheadMarker]
         let cmdEcho = pendingQueue[0].block.command.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -153,8 +175,13 @@ public final class Session: ObservableObject, Identifiable {
                 return !allMarkers.contains(where: { t.hasPrefix($0) })
             }
             .joined(separator: "\n")
-        let cleanLines = clean.components(separatedBy: CharacterSet.newlines)
-        let hasDone = cleanLines.contains { $0.trimmingCharacters(in: .whitespacesAndNewlines) == Self.doneMarker }
+
+        // Sentinel detection: scan only the recent tail of clean output so this
+        // check doesn't also degrade to O(total_buffer_size) on every packet.
+        let cleanNS = clean as NSString
+        let sentinelTail = cleanNS.substring(from: max(0, cleanNS.length - 500))
+        let hasDone = sentinelTail.components(separatedBy: CharacterSet.newlines)
+            .contains { $0.trimmingCharacters(in: .whitespacesAndNewlines) == Self.doneMarker }
         if hasDone {
             let entry = pendingQueue.removeFirst()
             extractSentinels(from: clean)
