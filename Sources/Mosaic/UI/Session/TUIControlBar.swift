@@ -61,7 +61,7 @@ private struct TUIKey: View {
                     .font(.system(size: 9))
                     .foregroundColor(.mosaicTextSec)
             }
-            .frame(width: 64, height: 44)
+            .frame(width: 72, height: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
