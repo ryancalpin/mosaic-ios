@@ -19,6 +19,7 @@ public final class Session: ObservableObject, Identifiable {
     public let id = UUID()
     public let connection: any TerminalConnection
 
+    @Published public var isTUIMode: Bool = false
     @Published public var blocks: [OutputBlock] = []
     @Published public var currentDirectory: String = "~"
     @Published public var currentBranch: String? = nil
@@ -51,6 +52,12 @@ public final class Session: ObservableObject, Identifiable {
     public init(connection: any TerminalConnection) {
         self.connection = connection
     }
+
+    #if DEBUG
+    public func simulateTUIDetection(entering: Bool) {
+        isTUIMode = entering
+    }
+    #endif
 
     // MARK: - Lifecycle
 
@@ -150,6 +157,11 @@ public final class Session: ObservableObject, Identifiable {
     @MainActor
     private func handleOutput(_ data: Data) {
         terminalCoordinator?.feed(data: data)
+
+        // Detect alternate-screen enter/exit for TUI mode
+        let raw = String(data: data, encoding: .utf8) ?? ""
+        if raw.contains("\u{1B}[?1049h") { isTUIMode = true }
+        if raw.contains("\u{1B}[?1049l") { isTUIMode = false }
 
         guard let text = String(data: data, encoding: .utf8)
                       ?? String(data: data, encoding: .isoLatin1)
