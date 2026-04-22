@@ -1,5 +1,6 @@
 // Sources/Mosaic/UI/Onboarding/OnboardingView.swift
 import SwiftUI
+import SwiftData
 
 @MainActor
 struct OnboardingView: View {
@@ -119,6 +120,7 @@ private struct ConnectPage: View {
     @Binding var connectionSaved: Bool
     let onNext: () -> Void
     @State private var showForm = false
+    @Environment(\.modelContext) private var context
 
     var body: some View {
         VStack(spacing: 0) {
@@ -140,7 +142,10 @@ private struct ConnectPage: View {
                     connection: nil,
                     inlineMode: true,
                     onCancel: { showForm = false },
-                    onSave: { _ in
+                    onSave: { newConn in
+                        newConn.sortOrder = 0
+                        context.insert(newConn)
+                        try? context.save()
                         connectionSaved = true
                         onNext()
                     }

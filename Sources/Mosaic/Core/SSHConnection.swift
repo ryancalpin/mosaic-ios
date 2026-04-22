@@ -143,7 +143,7 @@ public final class SSHConnection: TerminalConnection {
                 } catch {
                     if !didResume {
                         didResume = true
-                        cont.resume(throwing: error)
+                        cont.resume(throwing: Self.humanReadable(error, port: info.port))
                     }
                     self.state = .disconnected
                     self.finishStreams()
@@ -192,6 +192,28 @@ public final class SSHConnection: TerminalConnection {
     @MainActor
     public func resize(cols: Int, rows: Int) async throws {
         try? await ttyWriter?.changeSize(cols: cols, rows: rows, pixelWidth: 0, pixelHeight: 0)
+    }
+
+    // MARK: - Error translation
+
+    private static func humanReadable(_ error: Error, port: Int) -> Error {
+        let raw = error.localizedDescription
+        // NIOConnectionError error 1 = EPERM (connection blocked/refused at OS level)
+        // NIOConnectionError error 61 = ECONNREFUSED
+        // NIOConnectionError error 60 = ETIMEDOUT
+        if raw.contains("NIOConnectionError") || raw.contains("NIOPosix") {
+            if raw.contains("error 61") {
+                return ConnectionError.unknown("Connection refused on port \(port). Make sure SSH is running on the server.")
+            } else if raw.contains("error 60") || raw.contains("error 110") {
+                return ConnectionError.unknown("Connection timed out. Check that the hostname is correct and the server is reachable.")
+            } else if raw.contains("error 1") || raw.contains("error 8") || raw.contains("error 13") {
+                return ConnectionError.unknown("Could not reach the server on port \(port). Check that:\n• Your phone and server are on the same network (or use a public IP)\n• SSH is enabled on the server\n• Port \(port) is not blocked by a firewall")
+            }
+        }
+        if raw.contains("NIOSSHError") || raw.contains("protocolViolation") {
+            return ConnectionError.unknown("SSH handshake failed. The server may not be running SSH on port \(port).")
+        }
+        return error
     }
 
     // MARK: - Auth

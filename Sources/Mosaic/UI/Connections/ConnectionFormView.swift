@@ -195,11 +195,12 @@ struct ConnectionFormView: View {
                 .font(.custom("JetBrains Mono", size: 11))
                 .foregroundStyle(Color.mosaicTextSec)
                 .frame(width: 90, alignment: .leading)
-            SecureField("", text: text)
+            SecureField("required", text: text)
                 .font(.custom("JetBrains Mono", size: 11))
                 .foregroundStyle(Color.mosaicTextPri)
                 .tint(.mosaicAccent)
                 .textContentType(.password)
+                .colorScheme(.dark)
         }
     }
 
