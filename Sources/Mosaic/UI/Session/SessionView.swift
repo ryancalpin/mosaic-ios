@@ -90,9 +90,14 @@ struct SessionView: View {
                                     Color.clear.frame(height: 8).id("bottom")
                                 }
                             }
-                            // SmartInputBar anchored to bottom of scroll area — this
-                            // pattern (used by Messages, Mail) prevents iOS from
-                            // pre-reserving keyboard space and creating a blank gap.
+                            // Suppress UIKit's automatic keyboard-height contentInset
+                            // adjustment on the underlying UIScrollView. Without this,
+                            // UIKit adds keyboard-height padding AND safeAreaInset adds
+                            // the SmartInputBar above it — creating the double-gap.
+                            // The SmartInputBar's safeAreaInset already rides up with
+                            // the keyboard correctly via SwiftUI's safe area system.
+                            .ignoresSafeArea(.keyboard)
+                            // SmartInputBar anchored to bottom of scroll area.
                             .safeAreaInset(edge: .bottom, spacing: 0) {
                                 SmartInputBar(
                                     text: $session.pendingCommand,
