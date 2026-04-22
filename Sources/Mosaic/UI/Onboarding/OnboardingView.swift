@@ -1,11 +1,9 @@
 // Sources/Mosaic/UI/Onboarding/OnboardingView.swift
 import SwiftUI
-import SwiftData
 
 @MainActor
 struct OnboardingView: View {
     @Environment(AppSettings.self) private var settings
-    @Environment(\.modelContext) private var modelContext
     @State private var page = 0
     @State private var connectionSaved = false
 
@@ -186,6 +184,7 @@ private struct DonePage: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 72))
                     .foregroundColor(.mosaicGreen)
+                    .accessibilityHidden(true)
 
                 Text("You're ready")
                     .font(.largeTitle.bold())
