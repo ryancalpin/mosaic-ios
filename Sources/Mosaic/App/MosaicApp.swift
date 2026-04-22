@@ -8,8 +8,8 @@ struct MosaicApp: App {
     init() {
         do {
             let cloudConfig = ModelConfiguration("cloud", schema: Schema([Connection.self]),     cloudKitDatabase: .automatic)
-            let localConfig = ModelConfiguration("local", schema: Schema([CommandHistory.self, CustomRenderer.self]), cloudKitDatabase: .none)
-            container = try ModelContainer(for: Connection.self, CommandHistory.self, CustomRenderer.self, configurations: cloudConfig, localConfig)
+            let localConfig = ModelConfiguration("local", schema: Schema([CommandHistory.self, CustomRenderer.self, Workflow.self, WorkflowStep.self]), cloudKitDatabase: .none)
+            container = try ModelContainer(for: Connection.self, CommandHistory.self, CustomRenderer.self, Workflow.self, WorkflowStep.self, configurations: cloudConfig, localConfig)
             injectTestSSHKeyIfNeeded(container: container)
             let ctx = ModelContext(container)
             Task { @MainActor in
