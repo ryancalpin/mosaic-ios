@@ -56,6 +56,24 @@ struct WorkflowModelTests {
     }
 }
 
+@Suite("RunWorkflowIntent")
+struct RunWorkflowIntentTests {
+
+    @Test func intentTitleIsCorrect() {
+        #expect(RunWorkflowIntent.title == "Run Workflow")
+    }
+
+    @Test func workflowNotFoundErrorMessage() {
+        let err = AppIntentError.workflowNotFound("deploy")
+        #expect(err.errorDescription?.contains("deploy") == true)
+    }
+
+    @Test func noActiveSessionErrorMessage() {
+        let err = AppIntentError.noActiveSession
+        #expect(err.errorDescription?.contains("session") == true)
+    }
+}
+
 @Suite("Session runWorkflow")
 @MainActor
 struct SessionRunWorkflowTests {

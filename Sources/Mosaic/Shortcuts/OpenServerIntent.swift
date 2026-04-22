@@ -29,11 +29,17 @@ struct OpenServerIntent: AppIntent {
 
 enum AppIntentError: LocalizedError {
     case connectionNotFound(String)
+    case workflowNotFound(String)
+    case noActiveSession
 
     var errorDescription: String? {
         switch self {
         case .connectionNotFound(let name):
             return "No saved server named '\(name)' found in Mosaic."
+        case .workflowNotFound(let name):
+            return "No workflow named \"\(name)\" found."
+        case .noActiveSession:
+            return "No active server session. Connect to a server first."
         }
     }
 }
