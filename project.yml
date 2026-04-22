@@ -88,3 +88,17 @@ targets:
       - framework: Frameworks/Protobuf_C_.xcframework
         embed: true
       - sdk: AppIntents.framework
+
+  MosaicTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests/MosaicTests
+    dependencies:
+      - target: Mosaic
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.ryncalpin.mosaic.tests

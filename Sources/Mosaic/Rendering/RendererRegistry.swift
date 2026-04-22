@@ -117,5 +117,29 @@ public final class RendererRegistry: ObservableObject {
         register(JsonTreeRenderer())
         register(GitDiffRenderer())
         register(CronRenderer())
+        // Phase 3 — Network
+        register(TracerouteRenderer())
+        register(WhoisRenderer())
+        register(NetstatRenderer())
+        register(NmapRenderer())
+        // Phase 3 — Git
+        register(GitLogRenderer())
+        register(GitBlameRenderer())
+        // Phase 3 — Files
+        register(CatRenderer())
+        register(DuRenderer())
+        register(FindRenderer())
+        // Phase 3 — Data
+        register(SqlTableRenderer())
+        register(PstreeRenderer())
+        register(RedisMonitorRenderer())
+        // Phase 3 — Infra
+        register(TerraformPlanRenderer())
+        register(OpenSSLCertRenderer())
+        register(DockerLogsRenderer())
+        register(JournalctlRenderer())
+        // Phase 3 — Misc
+        register(ManPageRenderer())
+        register(CurlWttrRenderer())
     }
 }

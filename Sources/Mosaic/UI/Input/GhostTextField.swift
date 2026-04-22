@@ -61,7 +61,6 @@ final class GhostUITextField: UITextField {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        ghostLayer.contentsScale = UIScreen.main.scale
         ghostLayer.isWrapped = false
         ghostLayer.truncationMode = .end
         ghostLayer.foregroundColor = UIColor(Color.mosaicTextSec).withAlphaComponent(0.45).cgColor
@@ -72,6 +71,7 @@ final class GhostUITextField: UITextField {
     func updateGhostLayer() {
         guard let suffix = ghostSuffix, !suffix.isEmpty else { ghostLayer.string = nil; ghostLayer.isHidden = true; return }
         ghostLayer.isHidden = false
+        ghostLayer.contentsScale = window?.windowScene?.screen.scale ?? 2.0
         let font = self.font ?? UIFont.monospacedSystemFont(ofSize: 14, weight: .regular)
         let ctFont = CTFontCreateWithName(font.fontName as CFString, font.pointSize, nil)
         ghostLayer.font = ctFont; ghostLayer.fontSize = font.pointSize; ghostLayer.string = suffix

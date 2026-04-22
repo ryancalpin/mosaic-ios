@@ -95,7 +95,7 @@ struct TabBarView: View {
     }
 }
 
-private let tabBarHeight: CGFloat = 42
+private let tabBarHeight: CGFloat = 44
 
 // MARK: - TabItemView
 

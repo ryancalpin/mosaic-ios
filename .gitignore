@@ -21,6 +21,12 @@ Mosaic.xcodeproj/
 .AppleDouble
 .LSOverride
 
+# Claude Code session data
+.claude/
+
+# Binary xcframeworks (too large for git — install locally)
+Frameworks/
+
 # Secrets — NEVER commit these
 *.env
 *.pem
