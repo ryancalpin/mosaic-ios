@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - SessionView
 
@@ -11,6 +12,12 @@ struct SessionView: View {
     @State private var showApproval = false
     @State private var showFirstNativeRenderBanner = false
     @State private var showWorkflows = false
+    // Manually tracked keyboard height. We observe keyboard notifications
+    // directly because SwiftUI/UIKit's automatic keyboard avoidance on iOS 26
+    // gets stuck reserving keyboard-height space even when the keyboard is
+    // hidden. .ignoresSafeArea(.keyboard) below disables auto-avoidance, and
+    // we manually push the SmartInputBar up via .padding(.bottom).
+    @State private var keyboardHeight: CGFloat = 0
 
     private var connInfo: ConnectionInfo { session.connection.connectionInfo }
 
@@ -133,6 +140,8 @@ struct SessionView: View {
                             )
                         }
                         .background(Color.mosaicBg)
+                        .padding(.bottom, keyboardHeight)
+                        .animation(.easeOut(duration: 0.25), value: keyboardHeight)
 
                         if showFirstNativeRenderBanner {
                             FirstNativeRenderBanner {
@@ -144,10 +153,21 @@ struct SessionView: View {
                     }
                 }
             }
+            .ignoresSafeArea(.keyboard)
             .animation(.easeInOut(duration: 0.2), value: session.isTUIMode)
             .onReceive(NotificationCenter.default.publisher(for: .mosaicFirstNativeRender)) { _ in
                 guard !settings.hasSeenFirstNativeRender else { return }
                 withAnimation { showFirstNativeRenderBanner = true }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
+                guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+                let bottomInset = UIApplication.shared.connectedScenes
+                    .compactMap { ($0 as? UIWindowScene)?.keyWindow?.safeAreaInsets.bottom }
+                    .first ?? 0
+                keyboardHeight = max(0, frame.height - bottomInset)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                keyboardHeight = 0
             }
 
             if session.isTUIMode {
