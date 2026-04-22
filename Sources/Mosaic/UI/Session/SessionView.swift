@@ -124,6 +124,7 @@ struct SessionView: View {
                                     withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
                                 }
                             }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                             SmartInputBar(
                                 text: $session.pendingCommand,
@@ -139,6 +140,14 @@ struct SessionView: View {
                                 }
                             )
                         }
+                        // CRITICAL: explicit infinity frame + bottom alignment.
+                        // Inside a ZStack, a VStack does NOT auto-fill its parent —
+                        // it sizes to its content. Without this, the ScrollView (which
+                        // has no intrinsic height when empty) collapses, and the whole
+                        // VStack shrinks to just the SmartInputBar's height, leaving a
+                        // huge gap below. The ScrollView also needs maxHeight:.infinity
+                        // so it consumes all the space above the SmartInputBar.
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                         .background(Color.mosaicBg)
                         .padding(.bottom, keyboardHeight)
                         .animation(.easeOut(duration: 0.25), value: keyboardHeight)
