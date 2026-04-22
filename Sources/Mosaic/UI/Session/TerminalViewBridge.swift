@@ -16,6 +16,7 @@ import SwiftTerm
 struct TerminalViewBridge: UIViewRepresentable {
     @ObservedObject var session: Session
     let size: CGSize     // real pixel dimensions from GeometryReader in SessionView
+    var isTUIMode: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -59,6 +60,17 @@ struct TerminalViewBridge: UIViewRepresentable {
                 let cols = max(1, Int(size.width  / 8))
                 let rows = max(1, Int(size.height / 16))
                 try? await session.connection.resize(cols: cols, rows: rows)
+            }
+        }
+
+        // Manage first responder based on TUI mode
+        if isTUIMode {
+            DispatchQueue.main.async {
+                uiView.becomeFirstResponder()
+            }
+        } else {
+            DispatchQueue.main.async {
+                uiView.resignFirstResponder()
             }
         }
     }

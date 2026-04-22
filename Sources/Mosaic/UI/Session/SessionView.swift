@@ -30,7 +30,7 @@ struct SessionView: View {
                     // SwiftTerm — hidden via opacity, but full-sized so it reports
                     // correct terminal dimensions. allowsHitTesting(false) keeps it
                     // from intercepting touches meant for the scroll view.
-                    TerminalViewBridge(session: session, size: geo.size)
+                    TerminalViewBridge(session: session, size: geo.size, isTUIMode: false)
                         .opacity(0)
                         .allowsHitTesting(false)
 
