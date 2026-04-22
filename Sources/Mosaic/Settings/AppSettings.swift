@@ -56,8 +56,14 @@ final class AppSettings {
     var claudeApiKey: String {
         didSet { UserDefaults.standard.set(claudeApiKey, forKey: "mosaic.claudeApiKey") }
     }
+    var hasCompletedOnboarding: Bool {
+        didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: "mosaic.hasCompletedOnboarding") }
+    }
+    var hasSeenFirstNativeRender: Bool {
+        didSet { UserDefaults.standard.set(hasSeenFirstNativeRender, forKey: "mosaic.hasSeenFirstNativeRender") }
+    }
 
-    private init() {
+    init() {
         let ud = UserDefaults.standard
         theme            = AppTheme(rawValue: ud.string(forKey: "mosaic.theme") ?? "") ?? .dark
         let size         = ud.double(forKey: "mosaic.fontSize")
@@ -66,5 +72,7 @@ final class AppSettings {
         showNativeRenderers = ud.object(forKey: "mosaic.nativeRenderers") as? Bool ?? true
         showTimestamps   = ud.object(forKey: "mosaic.timestamps") as? Bool ?? false
         claudeApiKey     = ud.string(forKey: "mosaic.claudeApiKey") ?? ""
+        hasCompletedOnboarding  = ud.bool(forKey: "mosaic.hasCompletedOnboarding")
+        hasSeenFirstNativeRender = ud.bool(forKey: "mosaic.hasSeenFirstNativeRender")
     }
 }
