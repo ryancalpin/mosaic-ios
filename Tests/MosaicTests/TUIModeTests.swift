@@ -23,6 +23,21 @@ struct TUIModeTests {
         session.simulateTUIDetection(entering: false)
         #expect(!session.isTUIMode)
     }
+
+    @Test func detectEnterTUIViaRealData() async {
+        let session = Session(connection: MockTUIConnection())
+        let enterSeq = Data("\u{1B}[?1049h".utf8)
+        session.simulateHandleOutput(data: enterSeq)
+        #expect(session.isTUIMode)
+    }
+
+    @Test func detectEnterTUISplitAcrossPackets() async {
+        let session = Session(connection: MockTUIConnection())
+        session.simulateHandleOutput(data: Data("\u{1B}[?".utf8))
+        #expect(!session.isTUIMode)  // Not yet — sequence is incomplete
+        session.simulateHandleOutput(data: Data("1049h".utf8))
+        #expect(session.isTUIMode)   // Now detected after accumulation
+    }
 }
 
 // Minimal mock so Session can be instantiated in tests

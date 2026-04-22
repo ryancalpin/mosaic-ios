@@ -40,6 +40,7 @@ public final class Session: ObservableObject, Identifiable {
     }
     private var pendingQueue: [PendingEntry] = []
     private var outputTask: Task<Void, Never>? = nil
+    private var tUISequenceBuffer = ""
     // Cancels the head entry after 60 s — prevents permanent deadlock when the user runs
     // interactive sub-processes (ssh, python, node) that consume sentinel lines internally.
     private var headTimeoutTask: Task<Void, Never>? = nil
@@ -56,6 +57,10 @@ public final class Session: ObservableObject, Identifiable {
     #if DEBUG
     public func simulateTUIDetection(entering: Bool) {
         isTUIMode = entering
+    }
+
+    public func simulateHandleOutput(data: Data) {
+        handleOutput(data)
     }
     #endif
 
@@ -158,10 +163,21 @@ public final class Session: ObservableObject, Identifiable {
     private func handleOutput(_ data: Data) {
         terminalCoordinator?.feed(data: data)
 
-        // Detect alternate-screen enter/exit for TUI mode
-        let raw = String(data: data, encoding: .utf8) ?? ""
-        if raw.contains("\u{1B}[?1049h") { isTUIMode = true }
-        if raw.contains("\u{1B}[?1049l") { isTUIMode = false }
+        // Detect alternate-screen enter/exit for TUI mode.
+        // Sequences can split across packets, so we accumulate into a small buffer.
+        if let chunk = String(data: data, encoding: .utf8) {
+            tUISequenceBuffer += chunk
+            if tUISequenceBuffer.contains("\u{1B}[?1049h") {
+                isTUIMode = true
+                tUISequenceBuffer = ""
+            } else if tUISequenceBuffer.contains("\u{1B}[?1049l") {
+                isTUIMode = false
+                tUISequenceBuffer = ""
+            } else if tUISequenceBuffer.count > 20 {
+                // Keep only the tail to handle partial sequences without unbounded growth
+                tUISequenceBuffer = String(tUISequenceBuffer.suffix(20))
+            }
+        }
 
         guard let text = String(data: data, encoding: .utf8)
                       ?? String(data: data, encoding: .isoLatin1)
