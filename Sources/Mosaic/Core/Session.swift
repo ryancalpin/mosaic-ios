@@ -277,6 +277,10 @@ public final class Session: ObservableObject, Identifiable {
             block.rendererBadgeLabel = renderer.badgeLabel
         }
 
+        if case .native = result {
+            NotificationCenter.default.post(name: .mosaicFirstNativeRender, object: nil)
+        }
+
         block.isStreaming = false
 
         let duration = Date().timeIntervalSince(block.timestamp)
@@ -288,4 +292,10 @@ public final class Session: ObservableObject, Identifiable {
 
 public protocol TerminalFeeder: AnyObject {
     func feed(data: Data)
+}
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let mosaicFirstNativeRender = Notification.Name("mosaic.firstNativeRender")
 }

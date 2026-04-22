@@ -41,4 +41,16 @@ struct OnboardingTests {
         #expect(settings.hasCompletedOnboarding)
         UserDefaults.standard.removeObject(forKey: "mosaic.hasCompletedOnboarding")
     }
+
+    @Test func firstNativeRenderNotificationName() {
+        let name = Notification.Name.mosaicFirstNativeRender
+        #expect(name.rawValue == "mosaic.firstNativeRender")
+    }
+
+    @Test func seenFlagPreventsDuplicateBanner() {
+        let settings = AppSettings.makeForTesting()
+        settings.hasSeenFirstNativeRender = true
+        #expect(settings.hasSeenFirstNativeRender)
+        UserDefaults.standard.removeObject(forKey: "mosaic.hasSeenFirstNativeRender")
+    }
 }

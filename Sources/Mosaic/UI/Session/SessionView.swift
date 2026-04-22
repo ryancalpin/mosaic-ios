@@ -5,9 +5,11 @@ import SwiftUI
 @MainActor
 struct SessionView: View {
     @ObservedObject var session: Session
+    @Environment(AppSettings.self) private var settings
     @State private var approvalCommand: String? = nil
     @State private var approvalTier: SafetyTier = .safe
     @State private var showApproval = false
+    @State private var showFirstNativeRenderBanner = false
 
     private var connInfo: ConnectionInfo { session.connection.connectionInfo }
 
@@ -87,7 +89,19 @@ struct SessionView: View {
                         }
                     }
                     .background(Color.mosaicBg)
+
+                    if showFirstNativeRenderBanner {
+                        FirstNativeRenderBanner {
+                            showFirstNativeRenderBanner = false
+                            settings.hasSeenFirstNativeRender = true
+                        }
+                        .transition(.opacity)
+                    }
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .mosaicFirstNativeRender)) { _ in
+                guard !settings.hasSeenFirstNativeRender else { return }
+                withAnimation { showFirstNativeRenderBanner = true }
             }
 
             SmartInputBar(
