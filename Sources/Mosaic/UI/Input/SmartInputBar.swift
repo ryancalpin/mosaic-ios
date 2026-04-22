@@ -76,6 +76,7 @@ struct SmartInputBar: View {
             }
             .padding(.horizontal, 12).padding(.vertical, 10).background(Color.mosaicSurface1)
         }
+        .background(Color.mosaicSurface1)
         .onAppear {
             let matcher = HistoryMatcher(context: modelContext)
             historyMatcher = matcher

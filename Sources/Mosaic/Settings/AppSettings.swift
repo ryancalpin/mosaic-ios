@@ -67,7 +67,7 @@ final class AppSettings {
         let ud = UserDefaults.standard
         theme            = AppTheme(rawValue: ud.string(forKey: "mosaic.theme") ?? "") ?? .dark
         let size         = ud.double(forKey: "mosaic.fontSize")
-        terminalFontSize = size > 0 ? size : 13.0
+        terminalFontSize = size > 0 ? size : 14.0
         outputDensity    = OutputDensity(rawValue: ud.string(forKey: "mosaic.density") ?? "") ?? .standard
         showNativeRenderers = ud.object(forKey: "mosaic.nativeRenderers") as? Bool ?? true
         showTimestamps   = ud.object(forKey: "mosaic.timestamps") as? Bool ?? false

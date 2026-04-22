@@ -56,7 +56,7 @@ struct BreadcrumbBar: View {
                     .clipShape(RoundedRectangle(cornerRadius: 3))
             }
         }
-        .font(.custom("JetBrains Mono", size: 10))
+        .font(.custom("JetBrains Mono", size: 12))
         .lineLimit(1)
         .padding(.horizontal, 14)
         .frame(height: 28)

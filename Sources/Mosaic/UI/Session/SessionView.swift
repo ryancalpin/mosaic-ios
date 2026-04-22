@@ -90,6 +90,24 @@ struct SessionView: View {
                                     Color.clear.frame(height: 8).id("bottom")
                                 }
                             }
+                            // SmartInputBar anchored to bottom of scroll area — this
+                            // pattern (used by Messages, Mail) prevents iOS from
+                            // pre-reserving keyboard space and creating a blank gap.
+                            .safeAreaInset(edge: .bottom, spacing: 0) {
+                                SmartInputBar(
+                                    text: $session.pendingCommand,
+                                    hostname: connInfo.hostname,
+                                    onSend: { cmd in
+                                        session.pendingCommand = ""
+                                        Task { await session.send(cmd) }
+                                    },
+                                    onNeedsApproval: { cmd, tier in
+                                        approvalCommand = cmd
+                                        approvalTier    = tier
+                                        showApproval    = true
+                                    }
+                                )
+                            }
                             // Scroll on new block appended
                             .onChange(of: session.blocks.count) {
                                 withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
@@ -134,20 +152,6 @@ struct SessionView: View {
                 TUIControlBar { data in
                     Task { try? await session.connection.sendData(data) }
                 }
-            } else {
-                SmartInputBar(
-                    text: $session.pendingCommand,
-                    hostname: connInfo.hostname,
-                    onSend: { cmd in
-                        session.pendingCommand = ""
-                        Task { await session.send(cmd) }
-                    },
-                    onNeedsApproval: { cmd, tier in
-                        approvalCommand = cmd
-                        approvalTier    = tier
-                        showApproval    = true
-                    }
-                )
             }
         }
         .sheet(isPresented: $showWorkflows) {
