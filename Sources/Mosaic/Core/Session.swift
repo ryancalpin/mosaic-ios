@@ -145,6 +145,15 @@ public final class Session: ObservableObject, Identifiable {
         }
     }
 
+    public func runWorkflow(_ workflow: Workflow) async {
+        for step in workflow.orderedSteps {
+            await send(step.command)
+            if step.delayAfter > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(step.delayAfter * 1_000_000_000))
+            }
+        }
+    }
+
     public func sendSignal(_ signal: TerminalSignal) {
         let byte: String
         switch signal {

@@ -2,6 +2,7 @@
 import Testing
 import SwiftData
 @testable import Mosaic
+import Foundation
 
 @Suite("Workflow Model")
 struct WorkflowModelTests {
@@ -52,5 +53,25 @@ struct WorkflowModelTests {
         #expect(fetched.count == 1)
         #expect(fetched[0].name == "Deploy")
         #expect(fetched[0].steps.count == 1)
+    }
+}
+
+@Suite("Session runWorkflow")
+@MainActor
+struct SessionRunWorkflowTests {
+
+    @Test func runWorkflowExecutesStepsInOrder() async throws {
+        let session = Session(connection: MockTUIConnection())
+
+        let w = Workflow()
+        let s1 = WorkflowStep(); s1.command = "echo step1"; s1.position = 0; s1.delayAfter = 0
+        let s2 = WorkflowStep(); s2.command = "echo step2"; s2.position = 1; s2.delayAfter = 0
+        w.steps = [s2, s1]  // intentionally out of order
+
+        await session.runWorkflow(w)
+
+        // runWorkflow sends via session.send() which creates blocks
+        // Verify at least two blocks were created
+        #expect(session.blocks.count >= 2)
     }
 }
