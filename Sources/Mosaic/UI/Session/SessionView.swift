@@ -10,6 +10,7 @@ struct SessionView: View {
     @State private var approvalTier: SafetyTier = .safe
     @State private var showApproval = false
     @State private var showFirstNativeRenderBanner = false
+    @State private var showWorkflows = false
 
     private var connInfo: ConnectionInfo { session.connection.connectionInfo }
 
@@ -23,6 +24,20 @@ struct SessionView: View {
                 ahead:     session.aheadCount,
                 isTUIMode: session.isTUIMode
             )
+            .overlay(alignment: .trailing) {
+                if !session.isTUIMode {
+                    Button {
+                        showWorkflows = true
+                    } label: {
+                        Image(systemName: "list.bullet.rectangle")
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundColor(.mosaicTextSec)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
 
             // GeometryReader gives TerminalViewBridge real dimensions so
             // the SSH server receives correct cols/rows for vim, htop, etc.
@@ -133,6 +148,12 @@ struct SessionView: View {
                         showApproval    = true
                     }
                 )
+            }
+        }
+        .sheet(isPresented: $showWorkflows) {
+            WorkflowListView { workflow in
+                showWorkflows = false
+                Task { await session.runWorkflow(workflow) }
             }
         }
         .background(Color.mosaicBg)
