@@ -49,91 +49,88 @@ struct SessionView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 } else {
-                    // Normal layout: hidden terminal + output blocks + banner
+                    // Normal layout: hidden terminal + output blocks + input bar.
+                    // Layout strategy: VStack with ScrollView (flex) + SmartInputBar (fixed).
+                    // When keyboard appears the GeometryReader shrinks, the VStack shrinks
+                    // with it, and SmartInputBar stays pinned just above the keyboard.
+                    // No .ignoresSafeArea or .safeAreaInset needed — the VStack handles it.
                     ZStack(alignment: .topLeading) {
                         // SwiftTerm — hidden via opacity, but full-sized so it reports
-                        // correct terminal dimensions. allowsHitTesting(false) keeps it
-                        // from intercepting touches meant for the scroll view.
+                        // correct terminal dimensions. isUserInteractionEnabled=false
+                        // (set in updateUIView) prevents it from stealing first responder.
                         TerminalViewBridge(session: session, size: geo.size, isTUIMode: false)
                             .opacity(0)
                             .allowsHitTesting(false)
 
-                        ScrollViewReader { proxy in
-                            ScrollView {
-                                VStack(alignment: .leading, spacing: 0) {
-                                    ForEach(session.blocks) { block in
-                                        OutputBlockView(block: block)
-                                            .id(block.id)
-                                        Divider()
-                                            .background(Color.mosaicBorder.opacity(0.4))
-                                    }
+                        VStack(spacing: 0) {
+                            ScrollViewReader { proxy in
+                                ScrollView {
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        ForEach(session.blocks) { block in
+                                            OutputBlockView(block: block)
+                                                .id(block.id)
+                                            Divider()
+                                                .background(Color.mosaicBorder.opacity(0.4))
+                                        }
 
-                                    if showApproval, let cmd = approvalCommand {
-                                        ApprovalCardView(
-                                            command: cmd,
-                                            tier: approvalTier,
-                                            onConfirm: {
-                                                showApproval = false
-                                                approvalCommand = nil
-                                                session.pendingCommand = ""
-                                                Task { await session.send(cmd) }
-                                            },
-                                            onCancel: {
-                                                showApproval = false
-                                                approvalCommand = nil
-                                            }
-                                        )
-                                        .padding(14)
-                                        .id("approval")
-                                    }
+                                        if showApproval, let cmd = approvalCommand {
+                                            ApprovalCardView(
+                                                command: cmd,
+                                                tier: approvalTier,
+                                                onConfirm: {
+                                                    showApproval = false
+                                                    approvalCommand = nil
+                                                    session.pendingCommand = ""
+                                                    Task { await session.send(cmd) }
+                                                },
+                                                onCancel: {
+                                                    showApproval = false
+                                                    approvalCommand = nil
+                                                }
+                                            )
+                                            .padding(14)
+                                            .id("approval")
+                                        }
 
-                                    Color.clear.frame(height: 8).id("bottom")
+                                        Color.clear.frame(height: 8).id("bottom")
+                                    }
+                                }
+                                // Scroll on new block appended
+                                .onChange(of: session.blocks.count) {
+                                    withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                                }
+                                // Scroll while output streams into the active block
+                                .onChange(of: session.blocks.last?.rawOutput) {
+                                    proxy.scrollTo("bottom", anchor: .bottom)
+                                }
+                                .onChange(of: showApproval) {
+                                    if showApproval {
+                                        withAnimation { proxy.scrollTo("approval", anchor: .bottom) }
+                                    }
+                                }
+                                // Keyboard shortcut scroll notifications
+                                .onReceive(NotificationCenter.default.publisher(for: .mosaicScrollToTop)) { _ in
+                                    guard let firstID = session.blocks.first?.id else { return }
+                                    withAnimation { proxy.scrollTo(firstID, anchor: .top) }
+                                }
+                                .onReceive(NotificationCenter.default.publisher(for: .mosaicScrollToBottom)) { _ in
+                                    withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
                                 }
                             }
-                            // Suppress UIKit's automatic keyboard-height contentInset
-                            // adjustment on the underlying UIScrollView. Without this,
-                            // UIKit adds keyboard-height padding AND safeAreaInset adds
-                            // the SmartInputBar above it — creating the double-gap.
-                            // The SmartInputBar's safeAreaInset already rides up with
-                            // the keyboard correctly via SwiftUI's safe area system.
-                            .ignoresSafeArea(.keyboard)
-                            // SmartInputBar anchored to bottom of scroll area.
-                            .safeAreaInset(edge: .bottom, spacing: 0) {
-                                SmartInputBar(
-                                    text: $session.pendingCommand,
-                                    hostname: connInfo.hostname,
-                                    onSend: { cmd in
-                                        session.pendingCommand = ""
-                                        Task { await session.send(cmd) }
-                                    },
-                                    onNeedsApproval: { cmd, tier in
-                                        approvalCommand = cmd
-                                        approvalTier    = tier
-                                        showApproval    = true
-                                    }
-                                )
-                            }
-                            // Scroll on new block appended
-                            .onChange(of: session.blocks.count) {
-                                withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
-                            }
-                            // Scroll while output streams into the active block
-                            .onChange(of: session.blocks.last?.rawOutput) {
-                                proxy.scrollTo("bottom", anchor: .bottom)
-                            }
-                            .onChange(of: showApproval) {
-                                if showApproval {
-                                    withAnimation { proxy.scrollTo("approval", anchor: .bottom) }
+
+                            SmartInputBar(
+                                text: $session.pendingCommand,
+                                hostname: connInfo.hostname,
+                                onSend: { cmd in
+                                    session.pendingCommand = ""
+                                    Task { await session.send(cmd) }
+                                },
+                                onNeedsApproval: { cmd, tier in
+                                    approvalCommand = cmd
+                                    approvalTier    = tier
+                                    showApproval    = true
                                 }
-                            }
-                            // Keyboard shortcut scroll notifications
-                            .onReceive(NotificationCenter.default.publisher(for: .mosaicScrollToTop)) { _ in
-                                guard let firstID = session.blocks.first?.id else { return }
-                                withAnimation { proxy.scrollTo(firstID, anchor: .top) }
-                            }
-                            .onReceive(NotificationCenter.default.publisher(for: .mosaicScrollToBottom)) { _ in
-                                withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
-                            }
+                            )
                         }
                         .background(Color.mosaicBg)
 
