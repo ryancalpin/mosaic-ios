@@ -6,11 +6,12 @@ import SwiftUI
 // Shows: user@hostname (muted) › ~/current/path (accent)  branch ↑N
 
 struct BreadcrumbBar: View {
-    let username:  String
-    let hostname:  String
-    let directory: String
-    let branch:    String?
-    let ahead:     Int
+    let username:   String
+    let hostname:   String
+    let directory:  String
+    let branch:     String?
+    let ahead:      Int
+    var isTUIMode:  Bool = false
 
     var body: some View {
         HStack(spacing: 4) {
@@ -43,6 +44,17 @@ struct BreadcrumbBar: View {
             }
 
             Spacer()
+
+            if isTUIMode {
+                Text("TUI")
+                    .font(.custom("JetBrains Mono", size: 8).weight(.bold))
+                    .kerning(0.4)
+                    .foregroundColor(.mosaicYellow)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(Color.mosaicYellow.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
         }
         .font(.custom("JetBrains Mono", size: 10))
         .lineLimit(1)

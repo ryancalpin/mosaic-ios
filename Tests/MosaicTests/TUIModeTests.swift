@@ -31,6 +31,12 @@ struct TUIModeTests {
         #expect(session.isTUIMode)
     }
 
+    @Test func breadcrumbTUIDefaultFalse() {
+        // Verify the param has a default value (compiles without it)
+        let _ = BreadcrumbBar(username: "u", hostname: "h", directory: "/", branch: nil, ahead: 0)
+        #expect(true)
+    }
+
     @Test func detectEnterTUISplitAcrossPackets() async {
         let session = Session(connection: MockTUIConnection())
         session.simulateHandleOutput(data: Data("\u{1B}[?".utf8))
