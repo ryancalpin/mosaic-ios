@@ -70,6 +70,13 @@ struct RootView: View {
             // @Query views update automatically when CloudKit pushes arrive.
             // This is the hook point for any imperative state refresh in the future.
         }
+        .fullScreenCover(isPresented: Binding(
+            get: { !settings.hasCompletedOnboarding },
+            set: { _ in }
+        )) {
+            OnboardingView()
+                .environment(settings)
+        }
     }
 
     private func getOrCreateAISession(for session: Session) -> AISession {

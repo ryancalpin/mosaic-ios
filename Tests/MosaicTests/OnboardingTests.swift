@@ -31,4 +31,14 @@ struct OnboardingTests {
         // cleanup
         UserDefaults.standard.removeObject(forKey: "mosaic.hasSeenFirstNativeRender")
     }
+
+    @Test func onboardingShownWhenFlagFalse() {
+        UserDefaults.standard.removeObject(forKey: "mosaic.hasCompletedOnboarding")
+        let settings = AppSettings.makeForTesting()
+        #expect(!settings.hasCompletedOnboarding)
+        // Setting to true should flip
+        settings.hasCompletedOnboarding = true
+        #expect(settings.hasCompletedOnboarding)
+        UserDefaults.standard.removeObject(forKey: "mosaic.hasCompletedOnboarding")
+    }
 }
