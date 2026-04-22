@@ -63,7 +63,7 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(hasSeenFirstNativeRender, forKey: "mosaic.hasSeenFirstNativeRender") }
     }
 
-    init() {
+    private init() {
         let ud = UserDefaults.standard
         theme            = AppTheme(rawValue: ud.string(forKey: "mosaic.theme") ?? "") ?? .dark
         let size         = ud.double(forKey: "mosaic.fontSize")
@@ -75,4 +75,8 @@ final class AppSettings {
         hasCompletedOnboarding  = ud.bool(forKey: "mosaic.hasCompletedOnboarding")
         hasSeenFirstNativeRender = ud.bool(forKey: "mosaic.hasSeenFirstNativeRender")
     }
+
+#if DEBUG
+    static func makeForTesting() -> AppSettings { AppSettings() }
+#endif
 }
