@@ -42,9 +42,11 @@ struct FirstNativeRenderBanner: View {
         }
         .onAppear {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { visible = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+            Task {
+                try? await Task.sleep(nanoseconds: 6_000_000_000)
                 withAnimation(.easeOut(duration: 0.3)) { visible = false }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { onDismiss() }
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                onDismiss()
             }
         }
     }
