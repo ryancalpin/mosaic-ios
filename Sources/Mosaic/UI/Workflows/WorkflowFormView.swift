@@ -84,7 +84,8 @@ struct WorkflowFormView: View {
         wf.desc = desc
         for existing in wf.steps { modelContext.delete(existing) }
         wf.steps = []
-        for (idx, draft) in steps.enumerated() {
+        let nonEmptySteps = steps.filter { !$0.command.trimmingCharacters(in: .whitespaces).isEmpty }
+        for (idx, draft) in nonEmptySteps.enumerated() {
             let s = WorkflowStep()
             s.command = draft.command.trimmingCharacters(in: .whitespaces)
             s.delayAfter = draft.delayAfter

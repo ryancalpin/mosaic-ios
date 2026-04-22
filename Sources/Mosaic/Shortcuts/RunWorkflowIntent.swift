@@ -9,7 +9,7 @@ struct RunWorkflowIntent: AppIntent {
     var workflowName: String
 
     func perform() async throws -> some IntentResult {
-        let schema = Schema([Workflow.self, WorkflowStep.self])
+        let schema = Schema([CommandHistory.self, CustomRenderer.self, Workflow.self, WorkflowStep.self])
         let config = ModelConfiguration("local", schema: schema, cloudKitDatabase: .none)
         let container = try ModelContainer(for: schema, configurations: [config])
         let ctx = ModelContext(container)

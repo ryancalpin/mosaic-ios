@@ -7,7 +7,7 @@ public final class Workflow {
     public var name: String = ""
     public var desc: String = ""
     public var createdAt: Date = Date()
-    @Relationship(deleteRule: .cascade)
+    @Relationship(deleteRule: .cascade, inverse: \WorkflowStep.workflow)
     public var steps: [WorkflowStep] = []
 
     public init() {}
