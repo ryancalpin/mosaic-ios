@@ -33,6 +33,10 @@ struct TerminalViewBridge: UIViewRepresentable {
         context.coordinator.session      = session
         session.terminalCoordinator      = context.coordinator
 
+        // Prevent SwiftTerm from stealing first responder when hidden (non-TUI mode).
+        // Must be set at creation time — updateUIView keeps it in sync on mode changes.
+        tv.isUserInteractionEnabled = isTUIMode
+
         // Tell server about real terminal dimensions immediately
         Task {
             let cols = max(1, Int(size.width  / 8))   // ~8pt per char monospace
@@ -63,7 +67,12 @@ struct TerminalViewBridge: UIViewRepresentable {
             }
         }
 
-        // Manage first responder based on TUI mode
+        // Manage first responder based on TUI mode.
+        // isUserInteractionEnabled = false prevents SwiftTerm from ever calling
+        // becomeFirstResponder() internally when hidden — without this, SwiftTerm
+        // steals keyboard focus from SmartInputBar AND causes iOS to permanently
+        // reserve keyboard-height blank space even when the keyboard is dismissed.
+        uiView.isUserInteractionEnabled = isTUIMode
         if isTUIMode {
             DispatchQueue.main.async {
                 uiView.becomeFirstResponder()
